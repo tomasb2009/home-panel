@@ -92,7 +92,7 @@ class _MainColumn extends StatelessWidget {
                   title: 'Estado del hogar',
                   value: Row(
                     children: [
-                      const StatusDot(color: AppColors.green),
+                      const StatusDot(color: AppColors.green, glow: true),
                       const SizedBox(width: AppSpacing.s8),
                       Text('Todo normal', style: AppText.bodyStrong),
                     ],

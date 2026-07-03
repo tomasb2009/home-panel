@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 import 'app_card.dart';
+import 'icon_badge.dart';
 
 /// Compact status pill used in the header (Internet / Energía).
 class StatusChip extends StatelessWidget {
@@ -24,6 +25,7 @@ class StatusChip extends StatelessWidget {
     return SizedBox(
       width: width,
       child: AppCard(
+        glow: true,
         radius: AppRadius.mini,
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.s16,
@@ -32,7 +34,7 @@ class StatusChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 22, weight: 600, color: accent),
+            IconBadge(icon: icon, accent: accent, size: 38, iconSize: 20, radius: 11),
             const SizedBox(width: AppSpacing.iconText),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -24,7 +24,7 @@ class AppNavBar extends StatefulWidget {
   final ValueChanged<int> onChanged;
 
   static const List<NavDestination> destinations = [
-    NavDestination(Symbols.home, 'Main'),
+    NavDestination(Symbols.home, 'Inicio'),
     NavDestination(Symbols.lightbulb, 'Luces'),
     NavDestination(Symbols.blinds, 'Cortinas'),
     NavDestination(Symbols.pool, 'Pileta'),

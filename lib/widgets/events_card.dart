@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../theme/tokens.dart';
 import 'app_card.dart';
+import 'icon_badge.dart';
 import 'section_header.dart';
 
 class _EventData {
@@ -23,6 +24,7 @@ class EventsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      glow: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -73,12 +75,11 @@ class _EventRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const Icon(
-          Symbols.calendar_month,
-          size: 28,
-          weight: 600,
-          fill: 1,
-          color: AppColors.violet,
+        const IconBadge(
+          icon: Symbols.calendar_month,
+          accent: AppColors.violet,
+          size: 44,
+          iconSize: 24,
         ),
         const SizedBox(width: AppSpacing.iconText),
         Expanded(

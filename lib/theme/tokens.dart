@@ -71,6 +71,12 @@ class AppMotion {
 
   static const Duration duration = Duration(milliseconds: 180);
   static const Curve curve = Curves.easeOutCubic;
+
+  /// Slow ambient "breathing" for card glows.
+  static const Duration breath = Duration(milliseconds: 3600);
+
+  /// Faster heartbeat for live status dots.
+  static const Duration pulse = Duration(milliseconds: 1700);
 }
 
 class AppShadows {
@@ -136,47 +142,47 @@ class AppText {
       _base(76, FontWeight.w700, AppColors.textPrimary, height: 1.0, letterSpacing: -1.5);
 
   static TextStyle get date =>
-      _base(16, FontWeight.w500, AppColors.textSecondary);
+      _base(16, FontWeight.w500, AppColors.textSecondary, height: 1.3, letterSpacing: 0.2);
 
   static TextStyle get tempHero =>
       _base(44, FontWeight.w700, AppColors.textPrimary, height: 1.0, letterSpacing: -1);
 
   static TextStyle get tempMedium =>
-      _base(30, FontWeight.w700, AppColors.textPrimary, height: 1.0);
+      _base(30, FontWeight.w700, AppColors.textPrimary, height: 1.0, letterSpacing: -0.5);
 
   static TextStyle get sectionTitle =>
-      _base(20, FontWeight.w600, AppColors.textPrimary);
+      _base(20, FontWeight.w600, AppColors.textPrimary, height: 1.15, letterSpacing: -0.2);
 
   static TextStyle get cardTitle =>
-      _base(14, FontWeight.w600, AppColors.textSecondary);
+      _base(14, FontWeight.w600, AppColors.textSecondary, letterSpacing: 0.3);
 
   static TextStyle get greeting =>
-      _base(28, FontWeight.w600, AppColors.textPrimary, letterSpacing: -0.3);
+      _base(28, FontWeight.w600, AppColors.textPrimary, height: 1.1, letterSpacing: -0.4);
 
   static TextStyle get greetingSub =>
-      _base(15, FontWeight.w400, AppColors.textTertiary);
+      _base(15, FontWeight.w400, AppColors.textTertiary, height: 1.3, letterSpacing: 0.1);
 
   static TextStyle get bodyStrong =>
-      _base(18, FontWeight.w600, AppColors.textPrimary);
+      _base(18, FontWeight.w600, AppColors.textPrimary, height: 1.25, letterSpacing: -0.1);
 
   static TextStyle get body =>
-      _base(15, FontWeight.w500, AppColors.textSecondary);
+      _base(15, FontWeight.w500, AppColors.textSecondary, height: 1.35);
 
   static TextStyle get secondary =>
-      _base(13, FontWeight.w400, AppColors.textTertiary);
+      _base(13, FontWeight.w400, AppColors.textTertiary, height: 1.35, letterSpacing: 0.1);
 
   static TextStyle get chipLabel =>
-      _base(13, FontWeight.w600, AppColors.textSecondary);
+      _base(13, FontWeight.w600, AppColors.textSecondary, letterSpacing: 0.2);
 
   static TextStyle get chipValue =>
-      _base(12, FontWeight.w400, AppColors.textTertiary);
+      _base(12, FontWeight.w400, AppColors.textTertiary, letterSpacing: 0.2);
 
   static TextStyle get navLabel =>
-      _base(12, FontWeight.w500, AppColors.textTertiary);
+      _base(12, FontWeight.w500, AppColors.textTertiary, letterSpacing: 0.3);
 
   static TextStyle get statLabel =>
-      _base(12, FontWeight.w400, AppColors.textTertiary);
+      _base(12, FontWeight.w400, AppColors.textTertiary, letterSpacing: 0.3);
 
   static TextStyle get statValue =>
-      _base(15, FontWeight.w600, AppColors.textPrimary);
+      _base(15, FontWeight.w600, AppColors.textPrimary, letterSpacing: -0.1);
 }
