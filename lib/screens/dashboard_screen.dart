@@ -16,7 +16,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _navIndex = 6;
+  int _navIndex = 0;
 
   // Fixed design canvas matching the target 14" panel (1920x1200 → 16:10).
   // The whole UI is laid out here and scaled to fill the display, guaranteeing

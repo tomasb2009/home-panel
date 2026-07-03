@@ -4,6 +4,10 @@
 *.pyc
 *.swp
 .DS_Store
+
+# Local screenshot/capture helpers
+/shot.ps1
+/shot.png
 .atom/
 .build/
 .buildlog/
