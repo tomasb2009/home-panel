@@ -36,7 +36,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: _canvas.width,
                 height: _canvas.height,
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.outer),
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.outer,
+                    AppSpacing.outer,
+                    AppSpacing.outer,
+                    AppSpacing.s16,
+                  ),
                   child: Column(
                     children: [
                       Expanded(

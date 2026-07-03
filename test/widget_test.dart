@@ -16,7 +16,7 @@ void main() {
     expect(find.text('20:45'), findsOneWidget);
     expect(find.text('Parcialmente nublado'), findsOneWidget);
     expect(find.text('Buenas noches, Tomás 👋'), findsOneWidget);
-    expect(find.text('Main'), findsOneWidget);
+    expect(find.text('Inicio'), findsOneWidget);
     expect(find.text('Luces'), findsOneWidget);
   });
 }

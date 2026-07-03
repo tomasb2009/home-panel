@@ -21,37 +21,49 @@ class SummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.titleContent),
           const Expanded(
-            child: Row(
+            child: Column(
               children: [
                 Expanded(
-                  child: _MiniCard(
-                    icon: Symbols.grid_view,
-                    name: 'Planta Baja',
-                    status: 'Todo normal',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _MiniCard(
+                          icon: Symbols.grid_view,
+                          name: 'Planta Baja',
+                          status: 'Todo normal',
+                        ),
+                      ),
+                      SizedBox(width: AppSpacing.miniGap),
+                      Expanded(
+                        child: _MiniCard(
+                          icon: Symbols.stairs,
+                          name: 'Planta Alta',
+                          status: 'Todo normal',
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                SizedBox(width: AppSpacing.miniGap),
+                SizedBox(height: AppSpacing.miniGap),
                 Expanded(
-                  child: _MiniCard(
-                    icon: Symbols.stairs,
-                    name: 'Planta Alta',
-                    status: 'Todo normal',
-                  ),
-                ),
-                SizedBox(width: AppSpacing.miniGap),
-                Expanded(
-                  child: _MiniCard(
-                    icon: Symbols.park,
-                    name: 'Exterior',
-                    status: 'Todo normal',
-                  ),
-                ),
-                SizedBox(width: AppSpacing.miniGap),
-                Expanded(
-                  child: _MiniCard(
-                    icon: Symbols.garage,
-                    name: 'Garage',
-                    status: 'Todo normal',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _MiniCard(
+                          icon: Symbols.park,
+                          name: 'Exterior',
+                          status: 'Todo normal',
+                        ),
+                      ),
+                      SizedBox(width: AppSpacing.miniGap),
+                      Expanded(
+                        child: _MiniCard(
+                          icon: Symbols.garage,
+                          name: 'Garage',
+                          status: 'Todo normal',
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

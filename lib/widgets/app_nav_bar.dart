@@ -78,7 +78,16 @@ class _AppNavBarState extends State<AppNavBar> {
     final hasRects =
         _rects.length == AppNavBar.destinations.length &&
         widget.currentIndex < _rects.length;
-    final Rect? active = hasRects ? _rects[widget.currentIndex] : null;
+    // Inset the pill inside the (equal-width) item so neighbouring pills never
+    // touch and the indicator keeps a little breathing room.
+    final Rect? active = hasRects
+        ? Rect.fromLTRB(
+            _rects[widget.currentIndex].left + 6,
+            _rects[widget.currentIndex].top + 2,
+            _rects[widget.currentIndex].right - 6,
+            _rects[widget.currentIndex].bottom - 2,
+          )
+        : null;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -107,14 +116,15 @@ class _AppNavBarState extends State<AppNavBar> {
                 child: const _SlidingIndicator(),
               ),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 for (var i = 0; i < AppNavBar.destinations.length; i++)
-                  _NavItem(
-                    key: _itemKeys[i],
-                    destination: AppNavBar.destinations[i],
-                    selected: i == widget.currentIndex,
-                    onTap: () => widget.onChanged(i),
+                  Expanded(
+                    child: _NavItem(
+                      key: _itemKeys[i],
+                      destination: AppNavBar.destinations[i],
+                      selected: i == widget.currentIndex,
+                      onTap: () => widget.onChanged(i),
+                    ),
                   ),
               ],
             ),
@@ -133,7 +143,6 @@ class _SlidingIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.blue.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(AppRadius.activeButton),
         boxShadow: [
           BoxShadow(
@@ -194,16 +203,15 @@ class _NavItemState extends State<_NavItem> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTapDown: (_) => setState(() => _pressed = true),
         onTapUp: (_) => setState(() => _pressed = false),
         onTapCancel: () => setState(() => _pressed = false),
         onTap: widget.onTap,
-        // Padding here defines the pill footprint that the indicator covers.
+        // Each item is stretched to an equal width by Expanded; the content is
+        // centered inside so every button reads the same size.
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.s24,
-            vertical: AppSpacing.s8,
-          ),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.s8),
           child: AnimatedScale(
             scale: scale,
             duration: AppMotion.duration,
