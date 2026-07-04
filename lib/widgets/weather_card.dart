@@ -30,6 +30,9 @@ class WeatherCard extends StatelessWidget {
         ],
       ),
       child: Stack(
+        // Let the glowing rim bleed softly outward instead of being clipped
+        // to a hard rectangular edge.
+        clipBehavior: Clip.none,
         fit: StackFit.expand,
         children: [
           ClipRRect(

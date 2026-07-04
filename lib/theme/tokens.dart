@@ -34,6 +34,7 @@ class AppColors {
   static const Color green = Color(0xFF47D764);
   static const Color amber = Color(0xFFFFB31A);
   static const Color violet = Color(0xFF8264FF);
+  static const Color red = Color(0xFFFF5A5A);
 
   // Glow — the reflection of a screen, not a neon.
   static const Color glow = Color(0xFF42A5FF);

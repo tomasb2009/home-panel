@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/home_shell.dart';
 import 'theme/tokens.dart';
 
 void main() {
@@ -26,7 +26,7 @@ class HomePanelApp extends StatelessWidget {
           surface: AppColors.bgBottom,
         ),
       ),
-      home: const DashboardScreen(),
+      home: const HomeShell(),
     );
   }
 }

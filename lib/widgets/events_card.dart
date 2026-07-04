@@ -1,64 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../models/events_model.dart';
 import '../theme/tokens.dart';
+import '../utils/date_format.dart';
 import 'app_card.dart';
+import 'controls/confirm_delete_button.dart';
 import 'icon_badge.dart';
 import 'section_header.dart';
 
-class _EventData {
-  const _EventData(this.title, this.when);
-  final String title;
-  final String when;
-}
-
-/// "Próximos eventos" — each event is an elegant block, not a Flutter list tile.
+/// "Próximos eventos" — reactive list backed by [EventsModel]. The header "+"
+/// opens the new-event flow; each row can be removed.
 class EventsCard extends StatelessWidget {
-  const EventsCard({super.key});
+  const EventsCard({
+    super.key,
+    required this.model,
+    required this.onNewEvent,
+    required this.onOpenCalendar,
+  });
 
-  static const List<_EventData> _events = [
-    _EventData('Cumpleaños de mamá', 'Sábado, 5 de Julio'),
-    _EventData('Reunión de trabajo', 'Viernes, 4 de Julio · 09:00'),
-    _EventData('Mantenimiento pileta', 'Lunes, 7 de Julio · 10:00'),
-  ];
+  final EventsModel model;
+  final VoidCallback onNewEvent;
+  final VoidCallback onOpenCalendar;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      glow: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(title: 'Próximos eventos', trailing: Symbols.add),
-          const SizedBox(height: AppSpacing.titleContent),
-          for (var i = 0; i < _events.length; i++) ...[
-            _EventRow(event: _events[i]),
-            if (i != _events.length - 1)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
-                child: Divider(height: 1, thickness: 1, color: AppColors.divider),
-              ),
-          ],
-          const Spacer(),
-          const Divider(height: 1, thickness: 1, color: AppColors.divider),
-          const SizedBox(height: AppSpacing.miniGap),
-          Row(
+    return ListenableBuilder(
+      listenable: model,
+      builder: (context, _) {
+        final events = model.upcoming;
+        return AppCard(
+          glow: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Ver calendario',
-                style: AppText.body.copyWith(
-                  color: AppColors.blue,
-                  fontWeight: FontWeight.w600,
-                ),
+              SectionHeader(
+                title: 'Próximos eventos',
+                trailing: Symbols.add,
+                onTrailingTap: onNewEvent,
               ),
-              const Spacer(),
-              const Icon(
-                Symbols.chevron_right,
-                size: 20,
-                weight: 600,
-                color: AppColors.blue,
+              const SizedBox(height: AppSpacing.titleContent),
+              Expanded(
+                child: events.isEmpty
+                    ? const _EmptyState()
+                    : ListView.separated(
+                        padding: EdgeInsets.zero,
+                        itemCount: events.length,
+                        separatorBuilder: (_, _) => const Padding(
+                          padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
+                          child: Divider(height: 1, thickness: 1, color: AppColors.divider),
+                        ),
+                        itemBuilder: (context, i) => _EventRow(
+                          event: events[i],
+                          onDelete: () => model.remove(events[i].id),
+                        ),
+                      ),
+              ),
+              const SizedBox(height: AppSpacing.s8),
+              const Divider(height: 1, thickness: 1, color: AppColors.divider),
+              const SizedBox(height: AppSpacing.miniGap),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: onOpenCalendar,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Row(
+                    children: [
+                      Text(
+                        'Ver calendario',
+                        style: AppText.body.copyWith(
+                          color: AppColors.blue,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const Spacer(),
+                      const Icon(
+                        Symbols.chevron_right,
+                        size: 20,
+                        weight: 600,
+                        color: AppColors.blue,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Symbols.event_available,
+            size: 40,
+            weight: 500,
+            color: AppColors.textTertiary.withValues(alpha: 0.6),
+          ),
+          const SizedBox(height: AppSpacing.s8),
+          Text('Sin eventos próximos', style: AppText.secondary),
         ],
       ),
     );
@@ -66,21 +115,17 @@ class EventsCard extends StatelessWidget {
 }
 
 class _EventRow extends StatelessWidget {
-  const _EventRow({required this.event});
+  const _EventRow({required this.event, required this.onDelete});
 
-  final _EventData event;
+  final CalendarEvent event;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        const IconBadge(
-          icon: Symbols.calendar_month,
-          accent: AppColors.violet,
-          size: 44,
-          iconSize: 24,
-        ),
+        IconBadge(icon: event.category.icon, accent: event.category.color, size: 42, iconSize: 22, radius: 12),
         const SizedBox(width: AppSpacing.iconText),
         Expanded(
           child: Column(
@@ -95,7 +140,7 @@ class _EventRow extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                event.when,
+                EsDate.whenLine(event.when),
                 style: AppText.secondary,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -103,6 +148,8 @@ class _EventRow extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(width: AppSpacing.s8),
+        ConfirmDeleteButton(onConfirm: onDelete),
       ],
     );
   }

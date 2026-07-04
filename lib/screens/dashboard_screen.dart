@@ -1,78 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../models/events_model.dart';
 import '../theme/tokens.dart';
-import '../widgets/app_nav_bar.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/events_card.dart';
 import '../widgets/status_card.dart';
 import '../widgets/summary_card.dart';
 import '../widgets/weather_card.dart';
 
-class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+/// The "Main" tab content. The surrounding canvas, background and navigation
+/// bar are provided by the app shell.
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({
+    super.key,
+    required this.events,
+    required this.onNewEvent,
+    required this.onOpenCalendar,
+  });
 
-  @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
-}
-
-class _DashboardScreenState extends State<DashboardScreen> {
-  int _navIndex = 0;
-
-  // Fixed design canvas matching the target 14" panel (1920x1200 → 16:10).
-  // The whole UI is laid out here and scaled to fill the display, guaranteeing
-  // exact proportions, spacing and hierarchy on the device and at any DPI.
-  static const Size _canvas = Size(1366, 854);
+  final EventsModel events;
+  final VoidCallback onNewEvent;
+  final VoidCallback onOpenCalendar;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: DecoratedBox(
-        decoration: const BoxDecoration(gradient: AppGradients.background),
-        child: SafeArea(
-          child: Center(
-            child: FittedBox(
-              fit: BoxFit.contain,
-              child: SizedBox(
-                width: _canvas.width,
-                height: _canvas.height,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.outer,
-                    AppSpacing.outer,
-                    AppSpacing.outer,
-                    AppSpacing.s16,
-                  ),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: const [
-                            Expanded(flex: 27, child: WeatherCard()),
-                            SizedBox(width: AppSpacing.cardGap),
-                            Expanded(flex: 73, child: _MainColumn()),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.cardGap),
-                      AppNavBar(
-                        currentIndex: _navIndex,
-                        onChanged: (i) => setState(() => _navIndex = i),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Expanded(flex: 27, child: WeatherCard()),
+        const SizedBox(width: AppSpacing.cardGap),
+        Expanded(
+          flex: 73,
+          child: _MainColumn(
+            events: events,
+            onNewEvent: onNewEvent,
+            onOpenCalendar: onOpenCalendar,
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
 class _MainColumn extends StatelessWidget {
-  const _MainColumn();
+  const _MainColumn({
+    required this.events,
+    required this.onNewEvent,
+    required this.onOpenCalendar,
+  });
+
+  final EventsModel events;
+  final VoidCallback onNewEvent;
+  final VoidCallback onOpenCalendar;
 
   @override
   Widget build(BuildContext context) {
@@ -124,13 +103,20 @@ class _MainColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.cardGap),
-        const Expanded(
+        Expanded(
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(flex: 66, child: SummaryCard()),
-              SizedBox(width: AppSpacing.cardGap),
-              Expanded(flex: 34, child: EventsCard()),
+              const Expanded(flex: 66, child: SummaryCard()),
+              const SizedBox(width: AppSpacing.cardGap),
+              Expanded(
+                flex: 34,
+                child: EventsCard(
+                  model: events,
+                  onNewEvent: onNewEvent,
+                  onOpenCalendar: onOpenCalendar,
+                ),
+              ),
             ],
           ),
         ),

@@ -87,6 +87,9 @@ class _AppCardState extends State<AppCard> with SingleTickerProviderStateMixin {
             ],
           ),
           child: Stack(
+            // Let the glowing rim bleed softly outward rather than clipping it
+            // to a hard rectangular edge.
+            clipBehavior: Clip.none,
             children: [
               Positioned.fill(
                 child: ClipRRect(
