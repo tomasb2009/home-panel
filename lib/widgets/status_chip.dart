@@ -36,14 +36,25 @@ class StatusChip extends StatelessWidget {
           children: [
             IconBadge(icon: icon, accent: accent, size: 38, iconSize: 20, radius: 11),
             const SizedBox(width: AppSpacing.iconText),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(label, style: AppText.chipLabel),
-                const SizedBox(height: 2),
-                Text(value, style: AppText.chipValue),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: AppText.chipLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(value, style: AppText.chipValue, maxLines: 1),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

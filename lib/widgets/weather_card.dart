@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../models/weather_model.dart';
 import '../theme/tokens.dart';
+import '../utils/date_format.dart';
 import 'glow_border.dart';
+import 'ticking_builder.dart';
+import 'weather_glyph.dart';
 
 /// The most prominent element of the panel: full-height, background image,
-/// centered content, layered lighting and a bright glowing rim.
+/// centered content, layered lighting and a bright glowing rim. Time and date
+/// are live; the weather is fetched from [WeatherModel].
 class WeatherCard extends StatelessWidget {
-  const WeatherCard({super.key});
+  const WeatherCard({super.key, required this.model});
+
+  final WeatherModel model;
 
   @override
   Widget build(BuildContext context) {
@@ -71,12 +78,12 @@ class WeatherCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(
+                Padding(
+                  padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.cardPadding,
                     vertical: AppSpacing.s40,
                   ),
-                  child: _WeatherContent(),
+                  child: _WeatherContent(model: model),
                 ),
               ],
             ),
@@ -96,49 +103,45 @@ class WeatherCard extends StatelessWidget {
 }
 
 class _WeatherContent extends StatelessWidget {
-  const _WeatherContent();
+  const _WeatherContent({required this.model});
+
+  final WeatherModel model;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text('20:45', style: AppText.time, textAlign: TextAlign.center),
+        TickingBuilder(
+          builder: (context, now) => FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              EsDate.time(now),
+              style: AppText.time,
+              textAlign: TextAlign.center,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.s16),
-        Text(
-          'Jueves, 3 de Julio',
-          textAlign: TextAlign.center,
-          style: AppText.date.copyWith(
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
+        TickingBuilder(
+          interval: const Duration(seconds: 30),
+          builder: (context, now) => Text(
+            EsDate.longDate(now),
+            textAlign: TextAlign.center,
+            style: AppText.date.copyWith(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.s40),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const _WeatherGlyph(),
-              const SizedBox(width: AppSpacing.s16),
-              Text('22°', style: AppText.tempHero),
-            ],
+        Expanded(
+          child: ListenableBuilder(
+            listenable: model,
+            builder: (context, _) => _WeatherBody(model: model),
           ),
         ),
-        const SizedBox(height: AppSpacing.iconText),
-        Text(
-          'Parcialmente nublado',
-          textAlign: TextAlign.center,
-          style: AppText.body.copyWith(fontSize: 16, color: AppColors.textSecondary),
-        ),
-        const SizedBox(height: AppSpacing.s40),
-        const _WeatherStatsRow(),
-        const Spacer(),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -151,7 +154,7 @@ class _WeatherContent extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.s8),
             Text(
-              'Buenos Aires',
+              WeatherModel.city,
               style: AppText.secondary.copyWith(fontSize: 15),
             ),
           ],
@@ -161,80 +164,81 @@ class _WeatherContent extends StatelessWidget {
   }
 }
 
-/// Colored partly-cloudy glyph: a warm sun peeking behind a cool cloud.
-class _WeatherGlyph extends StatelessWidget {
-  const _WeatherGlyph();
+class _WeatherBody extends StatelessWidget {
+  const _WeatherBody({required this.model});
+
+  final WeatherModel model;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 92,
-      height: 74,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Positioned(
-            top: -2,
-            left: 2,
-            child: Icon(
-              Symbols.sunny,
-              size: 46,
-              fill: 1,
-              weight: 600,
-              color: Color(0xFFFFC53A),
-            ),
+    final data = model.data;
+
+    if (data == null) {
+      return Center(
+        child: Text(
+          model.hasError ? 'Clima no disponible' : 'Cargando clima…',
+          style: AppText.body.copyWith(color: AppColors.textTertiary),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              WeatherGlyph(kind: data.kind, isDay: data.isDay),
+              const SizedBox(width: AppSpacing.s16),
+              Text('${data.temperature.round()}°', style: AppText.tempHero),
+            ],
           ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Icon(
-              Symbols.cloud,
-              size: 66,
-              fill: 1,
-              weight: 500,
-              color: const Color(0xFFE7EEF8),
-              shadows: [
-                Shadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: AppSpacing.iconText),
+        Text(
+          data.condition,
+          textAlign: TextAlign.center,
+          style: AppText.body.copyWith(fontSize: 16, color: AppColors.textSecondary),
+        ),
+        const SizedBox(height: AppSpacing.s40),
+        _WeatherStatsRow(data: data),
+        const Spacer(),
+      ],
     );
   }
 }
 
 class _WeatherStatsRow extends StatelessWidget {
-  const _WeatherStatsRow();
+  const _WeatherStatsRow({required this.data});
+
+  final WeatherData data;
 
   @override
   Widget build(BuildContext context) {
-    return const FittedBox(
+    return FittedBox(
       fit: BoxFit.scaleDown,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _WeatherStat(
             icon: Symbols.thermostat,
-            value: '24°',
+            value: '${data.maxTemperature.round()}°',
             label: 'Máx.',
             accent: AppColors.blueBright,
           ),
-          SizedBox(width: AppSpacing.s24),
+          const SizedBox(width: AppSpacing.s24),
           _WeatherStat(
             icon: Symbols.humidity_percentage,
-            value: '60%',
+            value: '${data.humidity}%',
             label: 'Humedad',
             accent: AppColors.blueBright,
           ),
-          SizedBox(width: AppSpacing.s24),
+          const SizedBox(width: AppSpacing.s24),
           _WeatherStat(
             icon: Symbols.air,
-            value: '12 km/h',
+            value: '${data.windKmh.round()} km/h',
             label: 'Viento',
             accent: AppColors.textTertiary,
           ),
@@ -282,4 +286,3 @@ class _WeatherStat extends StatelessWidget {
     );
   }
 }
-

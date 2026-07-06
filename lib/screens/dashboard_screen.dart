@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../models/connectivity_model.dart';
 import '../models/events_model.dart';
+import '../models/weather_model.dart';
 import '../theme/tokens.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/events_card.dart';
@@ -14,11 +16,15 @@ class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
     super.key,
     required this.events,
+    required this.weather,
+    required this.connectivity,
     required this.onNewEvent,
     required this.onOpenCalendar,
   });
 
   final EventsModel events;
+  final WeatherModel weather;
+  final ConnectivityModel connectivity;
   final VoidCallback onNewEvent;
   final VoidCallback onOpenCalendar;
 
@@ -27,12 +33,13 @@ class DashboardScreen extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Expanded(flex: 27, child: WeatherCard()),
+        Expanded(flex: 27, child: WeatherCard(model: weather)),
         const SizedBox(width: AppSpacing.cardGap),
         Expanded(
           flex: 73,
           child: _MainColumn(
             events: events,
+            connectivity: connectivity,
             onNewEvent: onNewEvent,
             onOpenCalendar: onOpenCalendar,
           ),
@@ -45,11 +52,13 @@ class DashboardScreen extends StatelessWidget {
 class _MainColumn extends StatelessWidget {
   const _MainColumn({
     required this.events,
+    required this.connectivity,
     required this.onNewEvent,
     required this.onOpenCalendar,
   });
 
   final EventsModel events;
+  final ConnectivityModel connectivity;
   final VoidCallback onNewEvent;
   final VoidCallback onOpenCalendar;
 
@@ -58,7 +67,7 @@ class _MainColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const DashboardHeader(),
+        DashboardHeader(connectivity: connectivity),
         const SizedBox(height: AppSpacing.cardGap),
         IntrinsicHeight(
           child: Row(

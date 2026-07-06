@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import '../models/connectivity_model.dart';
 import '../models/events_model.dart';
 import '../models/lights_model.dart';
+import '../models/weather_model.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_nav_bar.dart';
 import '../widgets/calendar_view.dart';
@@ -41,6 +43,8 @@ class _HomeShellState extends State<HomeShell> {
   _Overlay _overlay = _Overlay.none;
   final LightsModel _lights = LightsModel();
   final EventsModel _events = EventsModel();
+  final WeatherModel _weather = WeatherModel()..start();
+  final ConnectivityModel _connectivity = ConnectivityModel()..start();
 
   void _closeOverlay() => setState(() => _overlay = _Overlay.none);
 
@@ -77,6 +81,8 @@ class _HomeShellState extends State<HomeShell> {
     _clipTimer?.cancel();
     _lights.dispose();
     _events.dispose();
+    _weather.dispose();
+    _connectivity.dispose();
     super.dispose();
   }
 
@@ -85,6 +91,8 @@ class _HomeShellState extends State<HomeShell> {
       case 0:
         return DashboardScreen(
           events: _events,
+          weather: _weather,
+          connectivity: _connectivity,
           onNewEvent: () => setState(() => _overlay = _Overlay.newEvent),
           onOpenCalendar: () => setState(() => _overlay = _Overlay.calendar),
         );
