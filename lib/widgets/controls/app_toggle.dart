@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/click_sound.dart';
 import '../../theme/tokens.dart';
 
 /// A custom animated on/off switch that matches the panel's glowing language
@@ -24,7 +25,10 @@ class AppToggle extends StatelessWidget {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => onChanged(!value),
+      onTap: () {
+        ClickSound.instance.play();
+        onChanged(!value);
+      },
       child: AnimatedContainer(
         duration: AppMotion.duration,
         curve: AppMotion.curve,

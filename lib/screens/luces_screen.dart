@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../models/lights_model.dart';
+import '../services/click_sound.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_card.dart';
 import '../widgets/controls/app_toggle.dart';
@@ -119,7 +120,7 @@ class _SceneButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: DecoratedBox(

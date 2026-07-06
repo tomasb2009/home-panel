@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../services/click_sound.dart';
 import '../theme/tokens.dart';
 import 'glow_border.dart';
 
@@ -207,7 +208,7 @@ class _NavItemState extends State<_NavItem> {
         onTapDown: (_) => setState(() => _pressed = true),
         onTapUp: (_) => setState(() => _pressed = false),
         onTapCancel: () => setState(() => _pressed = false),
-        onTap: widget.onTap,
+        onTap: withClick(widget.onTap),
         // Each item is stretched to an equal width by Expanded; the content is
         // centered inside so every button reads the same size.
         child: Padding(

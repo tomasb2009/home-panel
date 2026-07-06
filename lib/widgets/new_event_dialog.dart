@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../models/events_model.dart';
+import '../services/click_sound.dart';
 import '../theme/tokens.dart';
 import 'controls/app_calendar.dart';
 import 'glow_border.dart';
@@ -263,7 +264,7 @@ class _CategoryChip extends StatelessWidget {
     final color = category.color;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: AnimatedContainer(
@@ -408,7 +409,7 @@ class _CircleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: Container(
@@ -437,7 +438,7 @@ class _TextAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: Padding(
@@ -467,7 +468,7 @@ class _PrimaryAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: enabled ? onTap : null,
+      onTap: enabled ? withClick(onTap) : null,
       child: MouseRegion(
         cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
         child: AnimatedOpacity(

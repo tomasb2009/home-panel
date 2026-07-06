@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../models/events_model.dart';
+import '../services/click_sound.dart';
 import '../theme/tokens.dart';
 import '../utils/date_format.dart';
 import 'controls/confirm_delete_button.dart';
@@ -282,7 +283,7 @@ class _DayCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: Container(
@@ -388,7 +389,7 @@ class _NavArrow extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: Container(
@@ -417,7 +418,7 @@ class _CircleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: Container(
@@ -445,7 +446,7 @@ class _NewButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: DecoratedBox(

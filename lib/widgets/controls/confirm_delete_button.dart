@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../../services/click_sound.dart';
 import '../../theme/tokens.dart';
 
 /// A trash button that requires a second confirming tap. First tap reveals
@@ -96,7 +97,7 @@ class _MiniButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: withClick(onTap),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: Container(

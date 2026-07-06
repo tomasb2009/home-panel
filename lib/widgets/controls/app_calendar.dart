@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
+import '../../services/click_sound.dart';
 import '../../theme/tokens.dart';
 import '../../utils/date_format.dart';
 
@@ -128,7 +129,7 @@ class _NavArrow extends StatelessWidget {
       opacity: enabled ? 1 : 0.3,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onTap : null,
+        onTap: enabled ? withClick(onTap) : null,
         child: MouseRegion(
           cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
           child: Container(
@@ -175,7 +176,7 @@ class _DayCell extends StatelessWidget {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: disabled ? null : onTap,
+      onTap: disabled ? null : withClick(onTap),
       child: MouseRegion(
         cursor: disabled ? SystemMouseCursors.basic : SystemMouseCursors.click,
         child: Padding(

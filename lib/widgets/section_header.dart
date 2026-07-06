@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/click_sound.dart';
 import '../theme/tokens.dart';
 
 /// Section title with an optional trailing action rendered as a subtle
@@ -23,7 +24,7 @@ class SectionHeader extends StatelessWidget {
         if (trailing != null)
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: onTrailingTap,
+            onTap: withClick(onTrailingTap),
             child: MouseRegion(
               cursor: onTrailingTap != null
                   ? SystemMouseCursors.click

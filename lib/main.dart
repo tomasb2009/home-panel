@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/home_shell.dart';
+import 'services/click_sound.dart';
 import 'theme/tokens.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
+  ClickSound.instance.init();
   runApp(const HomePanelApp());
 }
 

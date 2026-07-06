@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import '../models/events_model.dart';
+import '../services/click_sound.dart';
 import '../theme/tokens.dart';
 import '../utils/date_format.dart';
 import 'app_card.dart';
@@ -60,7 +61,7 @@ class EventsCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.miniGap),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
-                onTap: onOpenCalendar,
+                onTap: withClick(onOpenCalendar),
                 child: MouseRegion(
                   cursor: SystemMouseCursors.click,
                   child: Row(
