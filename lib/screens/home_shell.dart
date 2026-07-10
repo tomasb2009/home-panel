@@ -2,12 +2,16 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import '../models/connectivity_model.dart';
 import '../models/events_model.dart';
 import '../models/lights_model.dart';
 import '../models/weather_model.dart';
+import '../services/assistant_service.dart';
+import '../services/click_sound.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_nav_bar.dart';
+import '../widgets/assistant_panel.dart';
 import '../widgets/calendar_view.dart';
 import '../widgets/icon_badge.dart';
 import '../widgets/new_event_dialog.dart';
@@ -45,6 +49,20 @@ class _HomeShellState extends State<HomeShell> {
   final EventsModel _events = EventsModel();
   final WeatherModel _weather = WeatherModel()..start();
   final ConnectivityModel _connectivity = ConnectivityModel()..start();
+  final AssistantService _assistant = AssistantService();
+  bool _assistantOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Voice light commands drive the panel's real lighting state.
+    _assistant.onLightCommand = (area, on) => _lights.setDevice(area, on);
+    // Pop the assistant open when the wake word is heard.
+    _assistant.onWake = () {
+      if (mounted && !_assistantOpen) setState(() => _assistantOpen = true);
+    };
+    _assistant.connect();
+  }
 
   void _closeOverlay() => setState(() => _overlay = _Overlay.none);
 
@@ -83,6 +101,7 @@ class _HomeShellState extends State<HomeShell> {
     _events.dispose();
     _weather.dispose();
     _connectivity.dispose();
+    _assistant.dispose();
     super.dispose();
   }
 
@@ -176,6 +195,25 @@ class _HomeShellState extends State<HomeShell> {
                           child: _overlayContent()!,
                         ),
                       ),
+                    // Voice assistant: floating launcher + docked panel.
+                    if (_assistantOpen)
+                      Positioned(
+                        right: AppSpacing.outer,
+                        bottom: 108,
+                        child: AssistantPanel(
+                          service: _assistant,
+                          onClose: () => setState(() => _assistantOpen = false),
+                        ),
+                      )
+                    else
+                      Positioned(
+                        right: AppSpacing.outer,
+                        bottom: 108,
+                        child: _AssistantLauncher(
+                          service: _assistant,
+                          onTap: () => setState(() => _assistantOpen = true),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -229,6 +267,60 @@ class _EdgeClipper extends CustomClipper<Rect> {
 
   @override
   bool shouldReclip(_EdgeClipper oldClipper) => oldClipper.active != active;
+}
+
+/// Floating button that opens the assistant panel. Shows a live status ring
+/// (green when ready, amber thinking, violet speaking) and a soft glow.
+class _AssistantLauncher extends StatelessWidget {
+  const _AssistantLauncher({required this.service, required this.onTap});
+
+  final AssistantService service;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: service,
+      builder: (context, _) {
+        final Color accent = switch (service.status) {
+          AssistantStatus.offline => AppColors.textTertiary,
+          AssistantStatus.error => AppColors.red,
+          AssistantStatus.idle => AppColors.blue,
+          AssistantStatus.listening => AppColors.blueBright,
+          AssistantStatus.thinking => AppColors.amber,
+          AssistantStatus.speaking => AppColors.violet,
+        };
+        return GestureDetector(
+          onTap: withClick(onTap),
+          child: Container(
+            width: 68,
+            height: 68,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  accent.withValues(alpha: 0.28),
+                  accent.withValues(alpha: 0.08),
+                ],
+              ),
+              border: Border.all(color: accent.withValues(alpha: 0.45), width: 1.4),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.35),
+                  blurRadius: 22,
+                  spreadRadius: -4,
+                ),
+              ],
+            ),
+            child: Icon(Symbols.mic, size: 30, weight: 600, color: accent),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// Elegant placeholder for screens that are not built yet.

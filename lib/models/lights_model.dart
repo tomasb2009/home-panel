@@ -27,29 +27,20 @@ class LightDevice {
   bool isOn;
 }
 
-/// Simulated smart-lighting state for the whole home.
+/// Smart-lighting state for the home. The three device ids (living, comedor,
+/// patio) match the areas the voice assistant controls, so commands and the
+/// panel stay perfectly in sync. When real hardware arrives, only the data
+/// source behind this model needs to change.
 class LightsModel extends ChangeNotifier {
   static const List<RoomInfo> rooms = [
-    RoomInfo('Living', Symbols.weekend),
-    RoomInfo('Cocina', Symbols.countertops),
-    RoomInfo('Dormitorio', Symbols.bed),
-    RoomInfo('Baño', Symbols.bathtub),
-    RoomInfo('Exterior', Symbols.deck),
-    RoomInfo('Garage', Symbols.garage),
+    RoomInfo('Sala de estar', Symbols.weekend),
+    RoomInfo('Patio trasero', Symbols.deck),
   ];
 
   final List<LightDevice> devices = [
-    LightDevice(id: 'l1', name: 'Techo', room: 'Living', isOn: true),
-    LightDevice(id: 'l2', name: 'Lámpara de pie', room: 'Living', icon: Symbols.floor_lamp, isOn: true),
-    LightDevice(id: 'l3', name: 'Luz TV', room: 'Living', icon: Symbols.tv, isOn: false),
-    LightDevice(id: 'k1', name: 'Techo', room: 'Cocina', isOn: true),
-    LightDevice(id: 'k2', name: 'Bajo mesada', room: 'Cocina', icon: Symbols.light, isOn: false),
-    LightDevice(id: 'd1', name: 'Techo', room: 'Dormitorio', isOn: false),
-    LightDevice(id: 'd2', name: 'Velador', room: 'Dormitorio', icon: Symbols.light, isOn: false),
-    LightDevice(id: 'b1', name: 'Techo', room: 'Baño', isOn: false),
-    LightDevice(id: 'e1', name: 'Frente', room: 'Exterior', icon: Symbols.wb_incandescent, isOn: true),
-    LightDevice(id: 'e2', name: 'Jardín', room: 'Exterior', icon: Symbols.yard, isOn: false),
-    LightDevice(id: 'g1', name: 'Techo', room: 'Garage', isOn: false),
+    LightDevice(id: 'living', name: 'Living', room: 'Sala de estar', icon: Symbols.weekend, isOn: false),
+    LightDevice(id: 'comedor', name: 'Comedor', room: 'Sala de estar', icon: Symbols.restaurant, isOn: false),
+    LightDevice(id: 'patio', name: 'Patio', room: 'Patio trasero', icon: Symbols.deck, isOn: false),
   ];
 
   List<LightDevice> byRoom(String room) =>
@@ -73,6 +64,19 @@ class LightsModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sets a single light by id (used by the voice assistant). No-op if the id
+  /// is unknown or the state is already the requested one.
+  void setDevice(String id, bool on) {
+    for (final d in devices) {
+      if (d.id == id) {
+        if (d.isOn == on) return;
+        d.isOn = on;
+        notifyListeners();
+        return;
+      }
+    }
+  }
+
   void setRoom(String room, bool on) {
     for (final d in byRoom(room)) {
       d.isOn = on;
@@ -94,10 +98,10 @@ class LightsModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Everything off except the exterior, for safety at night.
+  /// Interior off, patio on — safe lighting for the night.
   void nightMode() {
     for (final d in devices) {
-      d.isOn = d.room == 'Exterior';
+      d.isOn = d.room == 'Patio trasero';
     }
     notifyListeners();
   }
