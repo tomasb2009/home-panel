@@ -8,6 +8,7 @@ from typing import Callable
 from openai import OpenAI
 
 from .config import Config
+from .services.lights_service import normalize_light_areas
 from .tools import TOOL_SCHEMAS, ToolRunner
 
 log = logging.getLogger("brain")
@@ -32,8 +33,17 @@ def _system_prompt(cfg: Config) -> str:
         "- Podés usar 'señor' de vez en cuando, con moderación.\n"
         "- Sin emojis, sin listas largas, sin markdown, sin jerga casual.\n"
         "- Si algo falla, lo informás con compostura, sin dramatizar.\n\n"
-        "Capacidades: hora, clima dinámico, luces (living, comedor, patio trasero) "
-        "y música en Spotify.\n\n"
+        "Capacidades: hora, clima dinámico, luces y música en Spotify.\n\n"
+        "Luces (usá set_lights con el área correcta):\n"
+        "- living, comedor o patio: una sola zona.\n"
+        "- sala_de_estar: SIEMPRE incluye living Y comedor (son dos luces).\n"
+        "- patio_trasero: el patio.\n"
+        "- todas: las tres luces (living, comedor y patio) de TODA la casa.\n"
+        "- 'todas las luces' sin habitación → areas=['todas'].\n"
+        "- 'todas las luces de la sala de estar' → areas=['sala_de_estar'], NO todas.\n"
+        "- Si piden 'sala de estar' → areas=['sala_de_estar'], NO solo living.\n"
+        "- Si el pedido mezcla zonas (ej. apagar sala y prender patio), llamá "
+        "set_lights UNA VEZ POR ACCIÓN con el área correcta en cada llamada.\n\n"
         "Reglas:\n"
         "- Para clima, llamá a get_weather y elegí del resultado el dato exacto "
         "que responde la pregunta. Sé concreto y da números.\n"
@@ -117,6 +127,15 @@ class Brain:
             for tc in msg.tool_calls:
                 name = tc.function.name
                 args = ToolRunner.parse_args(tc.function.arguments)
+                if name == "set_lights":
+                    original = args.get("areas", [])
+                    args["areas"] = normalize_light_areas(user_text, original)
+                    if args["areas"] != original:
+                        log.info(
+                            "set_lights areas %s -> %s (utterance correction)",
+                            original,
+                            args["areas"],
+                        )
                 log.info("tool %s(%s)", name, args)
                 try:
                     result = self.runner.run(name, args, emit)

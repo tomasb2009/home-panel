@@ -25,6 +25,23 @@ from .voice import VoiceService
 
 log = logging.getLogger("ws")
 
+# Transcripts shorter than this after wake word are treated as noise/echo.
+_MIN_TRANSCRIPT_LEN = 4
+
+
+def _is_noise_transcript(text: str) -> bool:
+    """Filter echo/noise that Whisper sometimes turns into garbage text."""
+    cleaned = "".join(c for c in text if c.isalnum() or c.isspace()).strip()
+    if len(cleaned) < _MIN_TRANSCRIPT_LEN:
+        return True
+    low = cleaned.lower()
+    noise = {
+        "ah", "eh", "um", "uh", "mmm", "hmm", "gracias", "thank you",
+        "thanks", "sí", "si", "no", "ok", "okay", "hola", "hello",
+        "hey", "jarvis", "hey jarvis",
+    }
+    return low in noise
+
 
 async def serve(cfg: Config, brain: Brain, voice: VoiceService | None = None) -> None:
     loop = asyncio.get_running_loop()
@@ -98,8 +115,8 @@ def _voice_turn(brain: Brain, voice: VoiceService, emit, mic_lock: threading.Loc
     try:
         emit({"type": "state", "value": "listening"})
         text = voice.listen()
-        if not text:
-            emit({"type": "say", "text": "No te escuché, ¿probamos de nuevo?"})
+        if not text or _is_noise_transcript(text):
+            log.info("Transcripción descartada (ruido/eco): %r", text)
             emit({"type": "state", "value": "idle"})
             return
         emit({"type": "transcript", "text": text})
@@ -118,12 +135,13 @@ def _maybe_start_wake_word(cfg, brain, voice, broadcast, mic_lock):
         log.warning("Wake word activada pero la voz no está disponible.")
         return None
 
-    from .wake_word import WakeWordListener
+    from .wake_word import create_wake_listener
 
     def on_wake() -> None:
         broadcast({"type": "wake"})
         _voice_turn(brain, voice, broadcast, mic_lock)
 
-    listener = WakeWordListener(cfg, on_wake)
-    listener.start()
+    listener = create_wake_listener(cfg, on_wake)
+    if listener is not None:
+        listener.start()
     return listener

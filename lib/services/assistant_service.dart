@@ -41,12 +41,23 @@ class AssistantService extends ChangeNotifier {
   /// Light areas the assistant controls, mirrored for the panel UI.
   final Map<String, bool> lights = {'living': false, 'comedor': false, 'patio': false};
 
-  /// Called for each light area toggled by voice, so the panel's real
-  /// [LightsModel] can reflect the change.
-  void Function(String area, bool on)? onLightCommand;
+  /// Called when voice toggles one or more lights so [LightsModel] stays in sync.
+  void Function(List<String> areas, bool on)? onLightCommand;
 
   /// Called when the wake word is detected, so the panel can pop open.
   VoidCallback? onWake;
+
+  /// Sync light chips from the dashboard [LightsModel] (manual toggles).
+  void syncLightsFrom(Map<String, bool> state) {
+    var changed = false;
+    for (final entry in state.entries) {
+      if (lights[entry.key] != entry.value) {
+        lights[entry.key] = entry.value;
+        changed = true;
+      }
+    }
+    if (changed) notifyListeners();
+  }
 
   /// A short human-readable note about the last action taken (for feedback).
   String? lastAction;
@@ -122,9 +133,9 @@ class AssistantService extends ChangeNotifier {
         final on = msg['on'] == true;
         for (final a in areas) {
           if (lights.containsKey(a)) lights[a] = on;
-          onLightCommand?.call(a, on);
         }
         if (areas.isNotEmpty) {
+          onLightCommand?.call(areas, on);
           lastAction = '${on ? 'Prendí' : 'Apagué'} ${areas.join(', ')}';
         }
         break;

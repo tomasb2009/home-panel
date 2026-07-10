@@ -45,7 +45,11 @@ TOOL_SCHEMAS: list[dict] = [
         "type": "function",
         "function": {
             "name": "set_lights",
-            "description": "Prende o apaga las luces de una o varias áreas de la casa.",
+            "description": (
+                "Prende o apaga luces. Podés pedir zonas individuales, habitaciones "
+                "o toda la casa. 'sala_de_estar' incluye living Y comedor. "
+                "'todas' incluye living, comedor y patio."
+            ),
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -53,9 +57,19 @@ TOOL_SCHEMAS: list[dict] = [
                         "type": "array",
                         "items": {
                             "type": "string",
-                            "enum": ["living", "comedor", "patio"],
+                            "enum": [
+                                "living",
+                                "comedor",
+                                "patio",
+                                "sala_de_estar",
+                                "patio_trasero",
+                                "todas",
+                            ],
                         },
-                        "description": "Áreas a controlar. 'patio' = patio trasero.",
+                        "description": (
+                            "Zonas a controlar. sala_de_estar = living + comedor. "
+                            "patio_trasero = patio. todas = las 3 luces."
+                        ),
                     },
                     "on": {
                         "type": "boolean",

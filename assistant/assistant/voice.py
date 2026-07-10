@@ -115,7 +115,12 @@ class VoiceService:
 
     def listen(self) -> str:
         """Record a spoken command and return its transcription (Spanish)."""
-        wav = audio_io.record_until_silence(threshold=self.cfg.mic_silence_threshold)
+        wav = audio_io.record_until_silence(
+            threshold=self.cfg.mic_silence_threshold,
+            max_seconds=self.cfg.mic_max_record_seconds,
+            silence_hangover=self.cfg.mic_silence_hangover,
+            device_hint=self.cfg.mic_device,
+        )
         if not wav:
             return ""
         try:

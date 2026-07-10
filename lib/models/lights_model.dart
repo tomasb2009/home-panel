@@ -67,14 +67,21 @@ class LightsModel extends ChangeNotifier {
   /// Sets a single light by id (used by the voice assistant). No-op if the id
   /// is unknown or the state is already the requested one.
   void setDevice(String id, bool on) {
-    for (final d in devices) {
-      if (d.id == id) {
-        if (d.isOn == on) return;
-        d.isOn = on;
-        notifyListeners();
-        return;
+    setDevices([id], on);
+  }
+
+  /// Sets several lights at once so the dashboard updates in one step.
+  void setDevices(Iterable<String> ids, bool on) {
+    var changed = false;
+    for (final id in ids) {
+      for (final d in devices) {
+        if (d.id == id && d.isOn != on) {
+          d.isOn = on;
+          changed = true;
+        }
       }
     }
+    if (changed) notifyListeners();
   }
 
   void setRoom(String room, bool on) {

@@ -103,6 +103,10 @@ def run_server(cfg: Config) -> None:
         print("  (voz no disponible: sin sounddevice/numpy o sin micrófono)")
     if cfg.wake_word_ready:
         print("  (wake word activada)")
+    elif cfg.wake_word_enabled:
+        print("  (wake word: configuración incompleta — revisá .env)")
+    else:
+        print("  (wake word desactivada — poné WAKE_WORD_ENABLED=true en .env)")
     try:
         asyncio.run(serve(cfg, brain, voice))
     except KeyboardInterrupt:
@@ -120,12 +124,25 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Home Panel voice assistant brain")
     parser.add_argument("--serve", action="store_true", help="Run the WebSocket server")
     parser.add_argument("--voice", action="store_true", help="CLI en modo voz (push-to-talk)")
+    parser.add_argument("--list-mics", action="store_true", help="Listar micrófonos disponibles")
     args = parser.parse_args()
 
     cfg = load_config()
-    if not cfg.openai_api_key:
+    if not cfg.openai_api_key and not args.list_mics:
         print("Falta OPENAI_API_KEY. Copiá .env.example a .env y completalo.", file=sys.stderr)
         sys.exit(1)
+
+    if args.list_mics:
+        from . import audio_io
+        print("Micrófonos de entrada detectados:")
+        for line in audio_io.list_input_devices():
+            print(line)
+        mic = audio_io.resolve_mic(cfg.mic_device)
+        if mic:
+            print(f"\nSeleccionado: {mic.label}")
+        else:
+            print("\nNo se pudo abrir ningún micrófono.")
+        return
 
     if args.serve:
         run_server(cfg)

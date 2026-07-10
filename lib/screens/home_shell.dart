@@ -56,12 +56,21 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     // Voice light commands drive the panel's real lighting state.
-    _assistant.onLightCommand = (area, on) => _lights.setDevice(area, on);
+    _assistant.onLightCommand = (areas, on) => _lights.setDevices(areas, on);
+    // Keep assistant light chips in sync when the user toggles from the dashboard.
+    _lights.addListener(_syncAssistantLights);
+    _syncAssistantLights();
     // Pop the assistant open when the wake word is heard.
     _assistant.onWake = () {
       if (mounted && !_assistantOpen) setState(() => _assistantOpen = true);
     };
     _assistant.connect();
+  }
+
+  void _syncAssistantLights() {
+    _assistant.syncLightsFrom({
+      for (final d in _lights.devices) d.id: d.isOn,
+    });
   }
 
   void _closeOverlay() => setState(() => _overlay = _Overlay.none);
@@ -97,6 +106,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void dispose() {
     _clipTimer?.cancel();
+    _lights.removeListener(_syncAssistantLights);
     _lights.dispose();
     _events.dispose();
     _weather.dispose();

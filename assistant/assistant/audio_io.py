@@ -9,12 +9,16 @@ from __future__ import annotations
 import io
 import logging
 import wave
+from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import Iterator
 
 log = logging.getLogger("audio")
 
 REC_RATE = 16_000
 TTS_RATE = 24_000
 _BLOCK = 480  # 30 ms at 16 kHz
+_OWW_BLOCK = 1280  # 80 ms at 16 kHz
 
 try:
     import numpy as np
@@ -27,8 +31,145 @@ except Exception as e:  # noqa: BLE001
     log.warning("Audio no disponible (%s). Instalá sounddevice/numpy.", e)
 
 
+@dataclass(frozen=True)
+class MicConfig:
+    device: int
+    samplerate: int
+    label: str
+
+
 def audio_available() -> bool:
     return _AVAILABLE
+
+
+def list_input_devices() -> list[str]:
+    """Human-readable list of input devices (for diagnostics)."""
+    if not _AVAILABLE:
+        return []
+    lines = []
+    for i, d in enumerate(sd.query_devices()):
+        if d["max_input_channels"] > 0:
+            api = sd.query_hostapis(d["hostapi"])["name"]
+            lines.append(f"  [{i}] {d['name']} @ {int(d['default_samplerate'])}Hz ({api})")
+    return lines
+
+
+def _is_input_device(index: int) -> bool:
+    d = sd.query_devices(index)
+    name = d["name"].lower()
+    # Skip loopback / speaker-only pseudo inputs.
+    if "stereo mix" in name or "pc speaker" in name:
+        return False
+    return d["max_input_channels"] > 0
+
+
+def _resample_to_16k(frame: np.ndarray, source_rate: int) -> np.ndarray:
+    if source_rate == REC_RATE:
+        return frame.flatten()
+    n_out = int(len(frame) * REC_RATE / source_rate)
+    if n_out < 1:
+        return frame.flatten()
+    idx = np.linspace(0, len(frame) - 1, n_out).astype(np.int32)
+    return frame.flatten()[idx]
+
+
+def _candidate_devices(device_hint: str) -> list[int]:
+    """Build an ordered list of device indices to try."""
+    if not _AVAILABLE:
+        return []
+
+    hints: list[int] = []
+    if device_hint:
+        if device_hint.isdigit():
+            hints.append(int(device_hint))
+        else:
+            hint = device_hint.lower()
+            for i, d in enumerate(sd.query_devices()):
+                if d["max_input_channels"] > 0 and hint in d["name"].lower():
+                    hints.append(i)
+
+    # Prefer WASAPI mics, then the rest.
+    wasapi_id = next(
+        (i for i, h in enumerate(sd.query_hostapis()) if "WASAPI" in h["name"]),
+        None,
+    )
+    ordered: list[int] = list(hints)
+    for i, d in enumerate(sd.query_devices()):
+        if not _is_input_device(i):
+            continue
+        if wasapi_id is not None and d["hostapi"] == wasapi_id:
+            ordered.append(i)
+    for i, d in enumerate(sd.query_devices()):
+        if _is_input_device(i) and i not in ordered:
+            ordered.append(i)
+    default_in = sd.default.device[0]
+    if isinstance(default_in, int) and default_in >= 0 and default_in not in ordered:
+        ordered.insert(0, default_in)
+    return ordered
+
+
+def resolve_mic(device_hint: str = "") -> MicConfig | None:
+    """Pick the first mic that can actually open an input stream."""
+    if not _AVAILABLE:
+        return None
+
+    for index in _candidate_devices(device_hint):
+        d = sd.query_devices(index)
+        name = d["name"]
+        # Try native rate first (WASAPI), then 16 kHz (MME/DirectSound).
+        for rate in (int(d["default_samplerate"]), REC_RATE):
+            try:
+                with sd.InputStream(
+                    device=index,
+                    samplerate=rate,
+                    channels=1,
+                    dtype="int16",
+                    blocksize=max(_OWW_BLOCK, int(rate * 0.08)),
+                ) as stream:
+                    stream.read(max(_OWW_BLOCK, int(rate * 0.08)))
+                api = sd.query_hostapis(d["hostapi"])["name"]
+                label = f"[{index}] {name} @ {rate}Hz ({api})"
+                log.info("Micrófono: %s", label)
+                return MicConfig(device=index, samplerate=rate, label=label)
+            except Exception:  # noqa: BLE001
+                continue
+
+    log.error("No encontré ningún micrófono usable.")
+    for line in list_input_devices():
+        log.error(line)
+    return None
+
+
+@contextmanager
+def mic_stream(
+    mic: MicConfig,
+    blocksize_16k: int = _OWW_BLOCK,
+) -> Iterator[tuple[object, int]]:
+    """Yield (stream, read_size) where read_size is in frames at the device rate."""
+    read_size = blocksize_16k if mic.samplerate == REC_RATE else int(
+        blocksize_16k * mic.samplerate / REC_RATE
+    )
+    stream = sd.InputStream(
+        device=mic.device,
+        samplerate=mic.samplerate,
+        channels=1,
+        dtype="int16",
+        blocksize=read_size,
+    )
+    stream.start()
+    try:
+        yield stream, read_size
+    finally:
+        try:
+            stream.stop()
+            stream.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def read_frame_16k(stream, read_size: int, source_rate: int) -> np.ndarray:
+    data, _ = stream.read(read_size)
+    return _resample_to_16k(data, source_rate)
 
 
 def record_until_silence(
@@ -36,9 +177,14 @@ def record_until_silence(
     max_seconds: float = 12.0,
     start_timeout: float = 6.0,
     silence_hangover: float = 0.8,
+    device_hint: str = "",
 ) -> bytes:
     """Blocking capture. Returns WAV bytes, or empty bytes if nothing was said."""
     if not _AVAILABLE:
+        return b""
+
+    mic = resolve_mic(device_hint)
+    if mic is None:
         return b""
 
     frames: list = []
@@ -49,12 +195,11 @@ def record_until_silence(
     step = _BLOCK / REC_RATE
 
     try:
-        with sd.InputStream(samplerate=REC_RATE, channels=1, dtype="int16",
-                            blocksize=_BLOCK) as stream:
+        with mic_stream(mic, blocksize_16k=_BLOCK) as (stream, read_size):
             while elapsed < max_seconds:
-                data, _ = stream.read(_BLOCK)
-                frames.append(data.copy())
-                rms = float(np.sqrt(np.mean(np.square(data.astype(np.float32)))))
+                chunk = read_frame_16k(stream, read_size, mic.samplerate)
+                frames.append(chunk)
+                rms = float(np.sqrt(np.mean(np.square(chunk.astype(np.float32)))))
                 elapsed += step
 
                 if rms > threshold:
@@ -67,7 +212,7 @@ def record_until_silence(
                 else:
                     waited += step
                     if waited >= start_timeout:
-                        return b""  # user never spoke
+                        return b""
     except Exception as e:  # noqa: BLE001
         log.warning("Error grabando: %s", e)
         return b""
@@ -75,7 +220,7 @@ def record_until_silence(
     if not speech_started or not frames:
         return b""
 
-    audio = np.concatenate(frames, axis=0)
+    audio = np.concatenate(frames)
     return _to_wav(audio.tobytes(), REC_RATE)
 
 

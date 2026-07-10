@@ -52,6 +52,9 @@ class Config:
     openai_tts_model: str
     openai_tts_voice: str
     mic_silence_threshold: float
+    mic_silence_hangover: float
+    mic_max_record_seconds: float
+    mic_device: str
 
     # TTS provider
     tts_provider: str
@@ -66,6 +69,13 @@ class Config:
 
     # Wake word
     wake_word_enabled: bool
+    wake_word_backend: str
+    wake_word_model: str
+    wake_word_threshold: float
+    wake_word_cooldown: float
+    wake_word_confirm_frames: int
+    wake_word_warmup_frames: int
+    wake_word_min_interval: float
     picovoice_access_key: str
     wake_word_keyword_path: str
     wake_word_model_path: str
@@ -110,11 +120,12 @@ class Config:
 
     @property
     def wake_word_ready(self) -> bool:
-        return bool(
-            self.wake_word_enabled
-            and self.picovoice_access_key
-            and self.wake_word_keyword_path
-        )
+        if not self.wake_word_enabled:
+            return False
+        if self.wake_word_backend == "porcupine":
+            return bool(self.picovoice_access_key and self.wake_word_keyword_path)
+        # openwakeword — solo necesita estar habilitado.
+        return True
 
 
 def load_config() -> Config:
@@ -126,6 +137,9 @@ def load_config() -> Config:
         openai_tts_model=_get("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"),
         openai_tts_voice=_get("OPENAI_TTS_VOICE", "coral"),
         mic_silence_threshold=_get_float("MIC_SILENCE_THRESHOLD", 500.0),
+        mic_silence_hangover=_get_float("MIC_SILENCE_HANGOVER", 2.0),
+        mic_max_record_seconds=_get_float("MIC_MAX_RECORD_SECONDS", 15.0),
+        mic_device=_get("MIC_DEVICE"),
         tts_provider=_get("TTS_PROVIDER", "openai").lower(),
         elevenlabs_api_key=_get("ELEVENLABS_API_KEY"),
         elevenlabs_voice_id=_get("ELEVENLABS_VOICE_ID"),
@@ -136,6 +150,13 @@ def load_config() -> Config:
         elevenlabs_speed=_get_float("ELEVENLABS_SPEED", 0.92),
         elevenlabs_speaker_boost=_get_bool("ELEVENLABS_SPEAKER_BOOST", True),
         wake_word_enabled=_get_bool("WAKE_WORD_ENABLED", False),
+        wake_word_backend=_get("WAKE_WORD_BACKEND", "openwakeword").lower(),
+        wake_word_model=_get("WAKE_WORD_MODEL", "hey_jarvis"),
+        wake_word_threshold=_get_float("WAKE_WORD_THRESHOLD", 0.5),
+        wake_word_cooldown=_get_float("WAKE_WORD_COOLDOWN", 4.0),
+        wake_word_confirm_frames=_get_int("WAKE_WORD_CONFIRM_FRAMES", 3),
+        wake_word_warmup_frames=_get_int("WAKE_WORD_WARMUP_FRAMES", 6),
+        wake_word_min_interval=_get_float("WAKE_WORD_MIN_INTERVAL", 8.0),
         picovoice_access_key=_get("PICOVOICE_ACCESS_KEY"),
         wake_word_keyword_path=_get("WAKE_WORD_KEYWORD_PATH"),
         wake_word_model_path=_get("WAKE_WORD_MODEL_PATH"),
