@@ -9,6 +9,7 @@ import '../models/lights_model.dart';
 import '../models/weather_model.dart';
 import '../services/assistant_service.dart';
 import '../services/click_sound.dart';
+import '../services/spotify_controller.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_nav_bar.dart';
 import '../widgets/assistant_panel.dart';
@@ -17,6 +18,7 @@ import '../widgets/icon_badge.dart';
 import '../widgets/new_event_dialog.dart';
 import 'dashboard_screen.dart';
 import 'luces_screen.dart';
+import 'musica_screen.dart';
 
 /// Modal overlays that can be shown above the panel content.
 enum _Overlay { none, newEvent, calendar }
@@ -50,6 +52,7 @@ class _HomeShellState extends State<HomeShell> {
   final WeatherModel _weather = WeatherModel()..start();
   final ConnectivityModel _connectivity = ConnectivityModel()..start();
   final AssistantService _assistant = AssistantService();
+  late final SpotifyController _spotify = SpotifyController(_assistant);
   bool _assistantOpen = false;
 
   @override
@@ -111,6 +114,7 @@ class _HomeShellState extends State<HomeShell> {
     _events.dispose();
     _weather.dispose();
     _connectivity.dispose();
+    _spotify.dispose();
     _assistant.dispose();
     super.dispose();
   }
@@ -126,6 +130,8 @@ class _HomeShellState extends State<HomeShell> {
           onOpenCalendar: () => setState(() => _overlay = _Overlay.calendar),
         );
       case 1:
+        return MusicaScreen(controller: _spotify);
+      case 2:
         return LucesScreen(model: _lights);
       default:
         return _ComingSoon(destination: AppNavBar.destinations[index]);

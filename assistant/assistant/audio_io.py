@@ -20,6 +20,9 @@ TTS_RATE = 24_000
 _BLOCK = 480  # 30 ms at 16 kHz
 _OWW_BLOCK = 1280  # 80 ms at 16 kHz
 
+_cached_mic: MicConfig | None = None
+_devices_logged = False
+
 try:
     import numpy as np
     import sounddevice as sd
@@ -61,6 +64,52 @@ def _is_input_device(index: int) -> bool:
     if "stereo mix" in name or "pc speaker" in name:
         return False
     return d["max_input_channels"] > 0
+
+
+def invalidate_mic_cache() -> None:
+    """Call after stream errors so the next open re-probes devices."""
+    global _cached_mic
+    _cached_mic = None
+
+
+def _log_devices_once() -> None:
+    global _devices_logged
+    if _devices_logged:
+        return
+    _devices_logged = True
+    for line in list_input_devices():
+        log.error(line)
+
+
+def _stream_extra_settings(hostapi_index: int):
+    try:
+        api = sd.query_hostapis(hostapi_index)["name"]
+        if "WASAPI" in api:
+            return sd.WasapiSettings(exclusive=False)
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def _try_open_input(index: int, rate: int) -> bool:
+    d = sd.query_devices(index)
+    extra = _stream_extra_settings(d["hostapi"])
+    block = max(_OWW_BLOCK, int(rate * 0.08))
+    for blocksize in (block, _OWW_BLOCK, 512):
+        try:
+            with sd.InputStream(
+                device=index,
+                samplerate=rate,
+                channels=1,
+                dtype="int16",
+                blocksize=blocksize,
+                extra_settings=extra,
+            ) as stream:
+                stream.read(blocksize)
+            return True
+        except Exception:  # noqa: BLE001
+            continue
+    return False
 
 
 def _resample_to_16k(frame: np.ndarray, source_rate: int) -> np.ndarray:
@@ -108,35 +157,31 @@ def _candidate_devices(device_hint: str) -> list[int]:
     return ordered
 
 
-def resolve_mic(device_hint: str = "") -> MicConfig | None:
+def resolve_mic(device_hint: str = "", *, use_cache: bool = True) -> MicConfig | None:
     """Pick the first mic that can actually open an input stream."""
+    global _cached_mic
     if not _AVAILABLE:
         return None
+
+    if use_cache and _cached_mic is not None:
+        return _cached_mic
 
     for index in _candidate_devices(device_hint):
         d = sd.query_devices(index)
         name = d["name"]
-        # Try native rate first (WASAPI), then 16 kHz (MME/DirectSound).
-        for rate in (int(d["default_samplerate"]), REC_RATE):
-            try:
-                with sd.InputStream(
-                    device=index,
-                    samplerate=rate,
-                    channels=1,
-                    dtype="int16",
-                    blocksize=max(_OWW_BLOCK, int(rate * 0.08)),
-                ) as stream:
-                    stream.read(max(_OWW_BLOCK, int(rate * 0.08)))
+        rates = [int(d["default_samplerate"])]
+        if REC_RATE not in rates:
+            rates.append(REC_RATE)
+        for rate in rates:
+            if _try_open_input(index, rate):
                 api = sd.query_hostapis(d["hostapi"])["name"]
                 label = f"[{index}] {name} @ {rate}Hz ({api})"
                 log.info("Micrófono: %s", label)
-                return MicConfig(device=index, samplerate=rate, label=label)
-            except Exception:  # noqa: BLE001
-                continue
+                _cached_mic = MicConfig(device=index, samplerate=rate, label=label)
+                return _cached_mic
 
     log.error("No encontré ningún micrófono usable.")
-    for line in list_input_devices():
-        log.error(line)
+    _log_devices_once()
     return None
 
 
@@ -149,12 +194,14 @@ def mic_stream(
     read_size = blocksize_16k if mic.samplerate == REC_RATE else int(
         blocksize_16k * mic.samplerate / REC_RATE
     )
+    extra = _stream_extra_settings(sd.query_devices(mic.device)["hostapi"])
     stream = sd.InputStream(
         device=mic.device,
         samplerate=mic.samplerate,
         channels=1,
         dtype="int16",
         blocksize=read_size,
+        extra_settings=extra,
     )
     stream.start()
     try:
@@ -215,6 +262,7 @@ def record_until_silence(
                         return b""
     except Exception as e:  # noqa: BLE001
         log.warning("Error grabando: %s", e)
+        invalidate_mic_cache()
         return b""
 
     if not speech_started or not frames:
@@ -244,3 +292,8 @@ def _to_wav(pcm: bytes, samplerate: int) -> bytes:
         wf.setframerate(samplerate)
         wf.writeframes(pcm)
     return buf.getvalue()
+
+
+def pcm_to_wav(pcm: bytes, samplerate: int = REC_RATE) -> bytes:
+    """Public helper for other modules that already captured PCM."""
+    return _to_wav(pcm, samplerate)

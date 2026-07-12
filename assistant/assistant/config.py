@@ -67,7 +67,11 @@ class Config:
     elevenlabs_speed: float
     elevenlabs_speaker_boost: bool
 
-    # Wake word
+    # Wake word / listening mode
+    listen_mode: str
+    listen_cooldown: float
+    listen_confirm_frames: int
+    listen_min_interval: float
     wake_word_enabled: bool
     wake_word_backend: str
     wake_word_model: str
@@ -119,16 +123,26 @@ class Config:
         return bool(self.elevenlabs_api_key and self.elevenlabs_voice_id)
 
     @property
+    def always_listen_ready(self) -> bool:
+        return self.listen_mode == "always"
+
+    @property
     def wake_word_ready(self) -> bool:
+        if self.listen_mode != "wake_word":
+            return False
         if not self.wake_word_enabled:
             return False
         if self.wake_word_backend == "porcupine":
             return bool(self.picovoice_access_key and self.wake_word_keyword_path)
-        # openwakeword — solo necesita estar habilitado.
         return True
 
 
 def load_config() -> Config:
+    wake_enabled = _get_bool("WAKE_WORD_ENABLED", False)
+    listen_mode = _get("LISTEN_MODE", "").lower()
+    if not listen_mode:
+        listen_mode = "wake_word" if wake_enabled else "button"
+
     return Config(
         openai_api_key=_get("OPENAI_API_KEY"),
         openai_model=_get("OPENAI_MODEL", "gpt-4o-mini"),
@@ -149,7 +163,11 @@ def load_config() -> Config:
         elevenlabs_style=_get_float("ELEVENLABS_STYLE", 0.08),
         elevenlabs_speed=_get_float("ELEVENLABS_SPEED", 0.92),
         elevenlabs_speaker_boost=_get_bool("ELEVENLABS_SPEAKER_BOOST", True),
-        wake_word_enabled=_get_bool("WAKE_WORD_ENABLED", False),
+        listen_mode=listen_mode,
+        listen_cooldown=_get_float("LISTEN_COOLDOWN", _get_float("WAKE_WORD_COOLDOWN", 4.0)),
+        listen_confirm_frames=_get_int("LISTEN_CONFIRM_FRAMES", 4),
+        listen_min_interval=_get_float("LISTEN_MIN_INTERVAL", _get_float("WAKE_WORD_MIN_INTERVAL", 6.0)),
+        wake_word_enabled=wake_enabled,
         wake_word_backend=_get("WAKE_WORD_BACKEND", "openwakeword").lower(),
         wake_word_model=_get("WAKE_WORD_MODEL", "hey_jarvis"),
         wake_word_threshold=_get_float("WAKE_WORD_THRESHOLD", 0.5),

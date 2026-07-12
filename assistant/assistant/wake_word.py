@@ -37,7 +37,9 @@ class OpenWakeWordListener(threading.Thread):
         self._mic = None
         self._last_trigger = 0.0
 
-    def _create(self) -> bool:
+    def _init_model(self) -> bool:
+        if self._model is not None:
+            return True
         try:
             import openwakeword
             from openwakeword.model import Model
@@ -48,11 +50,17 @@ class OpenWakeWordListener(threading.Thread):
         try:
             openwakeword.utils.download_models(model_names=[self.cfg.wake_word_model])
             self._model = Model(wakeword_models=[self.cfg.wake_word_model])
-            self._mic = audio_io.resolve_mic(self.cfg.mic_device)
-            return self._mic is not None
+            return True
         except Exception as e:  # noqa: BLE001
-            log.error("No pude iniciar openWakeWord: %s", e)
+            log.error("No pude cargar el modelo wake word: %s", e)
             return False
+
+    def _resolve_mic(self) -> bool:
+        self._mic = audio_io.resolve_mic(self.cfg.mic_device)
+        return self._mic is not None
+
+    def _create(self) -> bool:
+        return self._init_model() and self._resolve_mic()
 
     def _drain_frames(self, stream, read_size: int, mic, count: int) -> None:
         """Read and discard frames to flush echo/noise from the mic buffer."""
@@ -62,6 +70,16 @@ class OpenWakeWordListener(threading.Thread):
             chunk = audio_io.read_frame_16k(stream, read_size, mic.samplerate)
             self._model.predict(chunk)
 
+    def _drain_after_wake(self, mic) -> None:
+        """Brief open/close to flush echo after TTS without holding the device."""
+        try:
+            with audio_io.mic_stream(mic) as (stream, read_size):
+                self._drain_frames(
+                    stream, read_size, mic, self.cfg.wake_word_warmup_frames
+                )
+        except Exception:  # noqa: BLE001
+            audio_io.invalidate_mic_cache()
+
     def _cooldown_sleep(self) -> None:
         """Keep the mic closed while the room settles after TTS."""
         deadline = time.monotonic() + self.cfg.wake_word_cooldown
@@ -69,8 +87,21 @@ class OpenWakeWordListener(threading.Thread):
             time.sleep(0.05)
 
     def run(self) -> None:
-        if not self._create():
+        if not self._init_model():
             return
+        while not self._stop.is_set():
+            if not self._resolve_mic():
+                time.sleep(10.0)
+                continue
+            try:
+                self._run_loop()
+            except Exception as e:  # noqa: BLE001
+                log.error("Error en el listener openWakeWord: %s", e)
+                audio_io.invalidate_mic_cache()
+                log.warning("Reintentando micrófono en 5 s…")
+                time.sleep(5.0)
+
+    def _run_loop(self) -> None:
         model = self._model
         mic = self._mic
         threshold = self.cfg.wake_word_threshold
@@ -86,49 +117,44 @@ class OpenWakeWordListener(threading.Thread):
             self.cfg.wake_word_cooldown,
         )
 
-        try:
-            with audio_io.mic_stream(mic) as (stream, read_size):
-                hits = 0
-                while not self._stop.is_set():
-                    chunk = audio_io.read_frame_16k(stream, read_size, mic.samplerate)
-                    scores = model.predict(chunk)
-                    score = float(scores.get(model_name, 0.0))
+        triggered = False
+        with audio_io.mic_stream(mic) as (stream, read_size):
+            hits = 0
+            while not self._stop.is_set():
+                chunk = audio_io.read_frame_16k(stream, read_size, mic.samplerate)
+                scores = model.predict(chunk)
+                score = float(scores.get(model_name, 0.0))
 
-                    if score >= threshold:
-                        hits += 1
-                    else:
-                        hits = 0
-
-                    if hits < confirm:
-                        continue
-
-                    # Confirmed detection.
-                    now = time.monotonic()
-                    if now - self._last_trigger < self.cfg.wake_word_min_interval:
-                        hits = 0
-                        continue
-
-                    log.info('¡"%s" detectado! (%.2f)', model_name, score)
-                    self._last_trigger = now
+                if score >= threshold:
+                    hits += 1
+                else:
                     hits = 0
-                    stream.stop()
 
-                    try:
-                        self._on_wake()
-                    except Exception as e:  # noqa: BLE001
-                        log.warning("Error en el turno de voz: %s", e)
+                if hits < confirm:
+                    continue
 
-                    if self._stop.is_set():
-                        break
+                now = time.monotonic()
+                if now - self._last_trigger < self.cfg.wake_word_min_interval:
+                    hits = 0
+                    continue
 
-                    self._cooldown_sleep()
-                    stream.start()
-                    self._drain_frames(
-                        stream, read_size, mic, self.cfg.wake_word_warmup_frames
-                    )
+                log.info('¡"%s" detectado! (%.2f)', model_name, score)
+                self._last_trigger = now
+                triggered = True
+                break
+
+        if not triggered or self._stop.is_set():
+            return
+
+        # Mic released — safe for the voice-turn recorder to open it.
+        audio_io.invalidate_mic_cache()
+        try:
+            self._on_wake()
         except Exception as e:  # noqa: BLE001
-            log.error("Error en el listener openWakeWord: %s", e)
-            log.error("Probá MIC_DEVICE en .env. Ejecutá: python -m assistant --list-mics")
+            log.warning("Error en el turno de voz: %s", e)
+
+        self._cooldown_sleep()
+        self._drain_after_wake(mic)
 
     def stop(self) -> None:
         self._stop.set()

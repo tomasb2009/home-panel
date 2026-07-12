@@ -101,14 +101,20 @@ def run_server(cfg: Config) -> None:
     voice = VoiceService(cfg)
     if not voice.available:
         print("  (voz no disponible: sin sounddevice/numpy o sin micrófono)")
-    if cfg.wake_word_ready:
+    if not runner.spotify.enabled:
+        print("  (Spotify sin configurar — completá SPOTIFY_CLIENT_ID/SECRET en .env)")
+    elif cfg.spotify_enabled:
+        print("  (Spotify listo — abrí Spotify Desktop en esta PC)")
+    if cfg.always_listen_ready:
+        print("  (escucha continua — hablá directo, sin palabra clave)")
+    elif cfg.wake_word_ready:
         print("  (wake word activada)")
     elif cfg.wake_word_enabled:
         print("  (wake word: configuración incompleta — revisá .env)")
     else:
-        print("  (wake word desactivada — poné WAKE_WORD_ENABLED=true en .env)")
+        print("  (solo push-to-talk — poné LISTEN_MODE=always o wake_word en .env)")
     try:
-        asyncio.run(serve(cfg, brain, voice))
+        asyncio.run(serve(cfg, brain, voice, runner.spotify))
     except KeyboardInterrupt:
         pass
     finally:
@@ -125,10 +131,11 @@ def main() -> None:
     parser.add_argument("--serve", action="store_true", help="Run the WebSocket server")
     parser.add_argument("--voice", action="store_true", help="CLI en modo voz (push-to-talk)")
     parser.add_argument("--list-mics", action="store_true", help="Listar micrófonos disponibles")
+    parser.add_argument("--spotify-diagnose", action="store_true", help="Probar conexión con Spotify")
     args = parser.parse_args()
 
     cfg = load_config()
-    if not cfg.openai_api_key and not args.list_mics:
+    if not cfg.openai_api_key and not args.list_mics and not args.spotify_diagnose:
         print("Falta OPENAI_API_KEY. Copiá .env.example a .env y completalo.", file=sys.stderr)
         sys.exit(1)
 
@@ -143,6 +150,10 @@ def main() -> None:
         else:
             print("\nNo se pudo abrir ningún micrófono.")
         return
+
+    if args.spotify_diagnose:
+        from .spotify_diagnose import run_spotify_diagnose
+        sys.exit(run_spotify_diagnose(cfg))
 
     if args.serve:
         run_server(cfg)

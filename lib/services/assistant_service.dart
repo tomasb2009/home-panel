@@ -47,6 +47,9 @@ class AssistantService extends ChangeNotifier {
   /// Called when the wake word is detected, so the panel can pop open.
   VoidCallback? onWake;
 
+  /// Spotify UI responses from the Python brain (direct API, not LLM).
+  void Function(Map<String, dynamic> msg)? onSpotifyResponse;
+
   /// Sync light chips from the dashboard [LightsModel] (manual toggles).
   void syncLightsFrom(Map<String, bool> state) {
     var changed = false;
@@ -123,6 +126,9 @@ class AssistantService extends ChangeNotifier {
       case 'action':
         _applyAction(msg);
         break;
+      case 'spotify':
+        onSpotifyResponse?.call(msg);
+        break;
     }
   }
 
@@ -140,7 +146,10 @@ class AssistantService extends ChangeNotifier {
         }
         break;
       case 'spotify_play':
-        if (msg['ok'] == true) lastAction = 'Reproduciendo ${msg['playing'] ?? ''}';
+        if (msg['ok'] == true) {
+          lastAction = 'Reproduciendo ${msg['playing'] ?? ''}';
+          onSpotifyResponse?.call({'type': 'spotify', 'action': 'play', 'ok': true});
+        }
         break;
       case 'remember_fact':
         if (msg['ok'] == true) lastAction = 'Lo voy a recordar';
@@ -181,6 +190,16 @@ class AssistantService extends ChangeNotifier {
     if (_channel == null) return;
     _setStatus(AssistantStatus.listening);
     _channel!.sink.add(jsonEncode({'type': 'listen'}));
+  }
+
+  /// Direct Spotify API command for the music screen.
+  void sendSpotify(String action, [Map<String, dynamic> params = const {}]) {
+    if (_channel == null) return;
+    _channel!.sink.add(jsonEncode({
+      'type': 'spotify',
+      'action': action,
+      ...params,
+    }));
   }
 
   /// Clears the conversation (short-term memory) on both ends.

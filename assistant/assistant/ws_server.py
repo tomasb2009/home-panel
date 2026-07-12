@@ -21,6 +21,8 @@ import websockets
 
 from .brain import Brain
 from .config import Config
+from .services.spotify_service import SpotifyService
+from .spotify_ws import handle_spotify_message
 from .voice import VoiceService
 
 log = logging.getLogger("ws")
@@ -43,7 +45,12 @@ def _is_noise_transcript(text: str) -> bool:
     return low in noise
 
 
-async def serve(cfg: Config, brain: Brain, voice: VoiceService | None = None) -> None:
+async def serve(
+    cfg: Config,
+    brain: Brain,
+    voice: VoiceService | None = None,
+    spotify: SpotifyService | None = None,
+) -> None:
     loop = asyncio.get_running_loop()
     clients: set = set()
     mic_lock = threading.Lock()
@@ -81,13 +88,18 @@ async def serve(cfg: Config, brain: Brain, voice: VoiceService | None = None) ->
                     if text:
                         broadcast({"type": "transcript", "text": text})
                         await asyncio.to_thread(brain.handle, text, broadcast)
+                elif kind == "spotify" and spotify is not None:
+                    result = await asyncio.to_thread(
+                        handle_spotify_message, msg, spotify
+                    )
+                    await _safe_send(ws, json.dumps(result, ensure_ascii=False))
         except websockets.ConnectionClosed:
             pass
         finally:
             clients.discard(ws)
             log.info("Panel desconectado: %s", peer)
 
-    listener = _maybe_start_wake_word(cfg, brain, voice, broadcast, mic_lock)
+    listener = _maybe_start_listener(cfg, brain, voice, broadcast, mic_lock)
 
     try:
         async with websockets.serve(handler, cfg.ws_host, cfg.ws_port):
@@ -105,16 +117,25 @@ async def _safe_send(ws, text: str) -> None:
         pass
 
 
-def _voice_turn(brain: Brain, voice: VoiceService, emit, mic_lock: threading.Lock) -> None:
-    """One full spoken turn: record -> transcribe -> think -> speak.
+def _voice_turn(
+    brain: Brain,
+    voice: VoiceService,
+    emit,
+    mic_lock: threading.Lock,
+    wav: bytes | None = None,
+) -> None:
+    """One full spoken turn: record (or use `wav`) -> transcribe -> think -> speak.
 
-    Serialized by `mic_lock` so wake word and push-to-talk never fight the mic.
+    Serialized by `mic_lock` so background listening and push-to-talk never fight.
     """
     if not mic_lock.acquire(blocking=False):
-        return  # a turn is already in progress
+        return
     try:
         emit({"type": "state", "value": "listening"})
-        text = voice.listen()
+        if wav is not None:
+            text = voice.transcribe(wav)
+        else:
+            text = voice.listen()
         if not text or _is_noise_transcript(text):
             log.info("Transcripción descartada (ruido/eco): %r", text)
             emit({"type": "state", "value": "idle"})
@@ -128,11 +149,25 @@ def _voice_turn(brain: Brain, voice: VoiceService, emit, mic_lock: threading.Loc
         mic_lock.release()
 
 
-def _maybe_start_wake_word(cfg, brain, voice, broadcast, mic_lock):
-    if not cfg.wake_word_ready:
-        return None
+def _maybe_start_listener(cfg, brain, voice, broadcast, mic_lock):
     if voice is None or not voice.available:
-        log.warning("Wake word activada pero la voz no está disponible.")
+        if cfg.always_listen_ready or cfg.wake_word_ready:
+            log.warning("Escucha activada pero la voz no está disponible.")
+        return None
+
+    if cfg.always_listen_ready:
+        from .always_listen import create_always_listener
+
+        def on_speech(wav: bytes) -> None:
+            broadcast({"type": "wake"})
+            _voice_turn(brain, voice, broadcast, mic_lock, wav=wav)
+
+        listener = create_always_listener(cfg, on_speech)
+        if listener is not None:
+            listener.start()
+        return listener
+
+    if not cfg.wake_word_ready:
         return None
 
     from .wake_word import create_wake_listener

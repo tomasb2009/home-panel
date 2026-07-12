@@ -121,6 +121,10 @@ class VoiceService:
             silence_hangover=self.cfg.mic_silence_hangover,
             device_hint=self.cfg.mic_device,
         )
+        return self.transcribe(wav)
+
+    def transcribe(self, wav: bytes) -> str:
+        """Transcribe WAV audio captured elsewhere (e.g. always-listen mode)."""
         if not wav:
             return ""
         try:
