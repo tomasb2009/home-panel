@@ -1,1 +1,1 @@
-"""Home Panel voice assistant "brain" service."""
+"""Home Panel assistant "brain" service."""

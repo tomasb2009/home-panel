@@ -47,44 +47,6 @@ class Config:
     openai_model: str
     assistant_name: str
 
-    # Voice
-    openai_stt_model: str
-    openai_tts_model: str
-    openai_tts_voice: str
-    mic_silence_threshold: float
-    mic_silence_hangover: float
-    mic_max_record_seconds: float
-    mic_device: str
-
-    # TTS provider
-    tts_provider: str
-    elevenlabs_api_key: str
-    elevenlabs_voice_id: str
-    elevenlabs_model: str
-    elevenlabs_stability: float
-    elevenlabs_similarity: float
-    elevenlabs_style: float
-    elevenlabs_speed: float
-    elevenlabs_speaker_boost: bool
-
-    # Wake word / listening mode
-    listen_mode: str
-    listen_cooldown: float
-    listen_confirm_frames: int
-    listen_min_interval: float
-    wake_word_enabled: bool
-    wake_word_backend: str
-    wake_word_model: str
-    wake_word_threshold: float
-    wake_word_cooldown: float
-    wake_word_confirm_frames: int
-    wake_word_warmup_frames: int
-    wake_word_min_interval: float
-    picovoice_access_key: str
-    wake_word_keyword_path: str
-    wake_word_model_path: str
-    wake_word_sensitivity: float
-
     # Location / time
     location_name: str
     latitude: float
@@ -129,67 +91,12 @@ class Config:
     def spotify_enabled(self) -> bool:
         return bool(self.spotify_client_id and self.spotify_client_secret)
 
-    @property
-    def elevenlabs_enabled(self) -> bool:
-        return bool(self.elevenlabs_api_key and self.elevenlabs_voice_id)
-
-    @property
-    def always_listen_ready(self) -> bool:
-        return self.listen_mode == "always"
-
-    @property
-    def wake_word_ready(self) -> bool:
-        if self.listen_mode != "wake_word":
-            return False
-        if not self.wake_word_enabled:
-            return False
-        if self.wake_word_backend == "porcupine":
-            return bool(self.picovoice_access_key and self.wake_word_keyword_path)
-        return True
-
 
 def load_config() -> Config:
-    wake_enabled = _get_bool("WAKE_WORD_ENABLED", False)
-    listen_mode = _get("LISTEN_MODE", "").lower()
-    if not listen_mode:
-        listen_mode = "wake_word" if wake_enabled else "button"
-
     return Config(
         openai_api_key=_get("OPENAI_API_KEY"),
         openai_model=_get("OPENAI_MODEL", "gpt-4o-mini"),
         assistant_name=_get("ASSISTANT_NAME", "Casa"),
-        openai_stt_model=_get("OPENAI_STT_MODEL", "whisper-1"),
-        openai_tts_model=_get("OPENAI_TTS_MODEL", "gpt-4o-mini-tts"),
-        openai_tts_voice=_get("OPENAI_TTS_VOICE", "coral"),
-        mic_silence_threshold=_get_float("MIC_SILENCE_THRESHOLD", 500.0),
-        mic_silence_hangover=_get_float("MIC_SILENCE_HANGOVER", 2.0),
-        mic_max_record_seconds=_get_float("MIC_MAX_RECORD_SECONDS", 15.0),
-        mic_device=_get("MIC_DEVICE"),
-        tts_provider=_get("TTS_PROVIDER", "openai").lower(),
-        elevenlabs_api_key=_get("ELEVENLABS_API_KEY"),
-        elevenlabs_voice_id=_get("ELEVENLABS_VOICE_ID"),
-        elevenlabs_model=_get("ELEVENLABS_MODEL", "eleven_multilingual_v2"),
-        elevenlabs_stability=_get_float("ELEVENLABS_STABILITY", 0.78),
-        elevenlabs_similarity=_get_float("ELEVENLABS_SIMILARITY", 0.82),
-        elevenlabs_style=_get_float("ELEVENLABS_STYLE", 0.08),
-        elevenlabs_speed=_get_float("ELEVENLABS_SPEED", 0.92),
-        elevenlabs_speaker_boost=_get_bool("ELEVENLABS_SPEAKER_BOOST", True),
-        listen_mode=listen_mode,
-        listen_cooldown=_get_float("LISTEN_COOLDOWN", _get_float("WAKE_WORD_COOLDOWN", 4.0)),
-        listen_confirm_frames=_get_int("LISTEN_CONFIRM_FRAMES", 4),
-        listen_min_interval=_get_float("LISTEN_MIN_INTERVAL", _get_float("WAKE_WORD_MIN_INTERVAL", 6.0)),
-        wake_word_enabled=wake_enabled,
-        wake_word_backend=_get("WAKE_WORD_BACKEND", "openwakeword").lower(),
-        wake_word_model=_get("WAKE_WORD_MODEL", "hey_jarvis"),
-        wake_word_threshold=_get_float("WAKE_WORD_THRESHOLD", 0.5),
-        wake_word_cooldown=_get_float("WAKE_WORD_COOLDOWN", 4.0),
-        wake_word_confirm_frames=_get_int("WAKE_WORD_CONFIRM_FRAMES", 3),
-        wake_word_warmup_frames=_get_int("WAKE_WORD_WARMUP_FRAMES", 6),
-        wake_word_min_interval=_get_float("WAKE_WORD_MIN_INTERVAL", 8.0),
-        picovoice_access_key=_get("PICOVOICE_ACCESS_KEY"),
-        wake_word_keyword_path=_get("WAKE_WORD_KEYWORD_PATH"),
-        wake_word_model_path=_get("WAKE_WORD_MODEL_PATH"),
-        wake_word_sensitivity=_get_float("WAKE_WORD_SENSITIVITY", 0.6),
         location_name=_get("LOCATION_NAME", "Córdoba"),
         latitude=_get_float("LATITUDE", -31.4201),
         longitude=_get_float("LONGITUDE", -64.1888),

@@ -28,11 +28,11 @@ class LightDevice {
 }
 
 /// Smart-lighting state for the home. The three device ids (living, comedor,
-/// patio) match the areas the voice assistant controls, so commands and the
+/// patio) match the areas the assistant controls, so commands and the
 /// panel stay perfectly in sync. When real hardware arrives, only the data
 /// source behind this model needs to change.
 class LightsModel extends ChangeNotifier {
-  /// Called when the user toggles a light from the UI (not from voice/MQTT sync).
+  /// Called when the user toggles a light from the UI (not from assistant/MQTT sync).
   void Function(String id, bool on)? onUserToggle;
   static const List<RoomInfo> rooms = [
     RoomInfo('Sala de estar', Symbols.weekend),
@@ -67,7 +67,7 @@ class LightsModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Sets a single light by id (used by the voice assistant). No-op if the id
+  /// Sets a single light by id (used by the assistant). No-op if the id
   /// is unknown or the state is already the requested one.
   void setDevice(String id, bool on) {
     setDevices([id], on);

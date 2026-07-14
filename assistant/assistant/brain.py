@@ -1,5 +1,5 @@
 """The brain: an OpenAI function-calling loop that turns natural language into
-tool calls and a spoken-friendly Spanish reply."""
+tool calls and a concise Spanish reply."""
 from __future__ import annotations
 
 import logging
@@ -24,9 +24,9 @@ def _system_prompt(cfg: Config) -> str:
         f"Sos {name}, el asistente de inteligencia artificial de una residencia "
         f"en {cfg.location_name}, Argentina. Tu personalidad es la de un mayordomo "
         "digital: serio, inteligente, calmado y seguro. Hablás en español con tono "
-        "formal y preciso, como un asistente de alto nivel. Tus respuestas se leen "
-        "en voz alta, así que deben ser BREVES (una o dos frases como máximo), "
-        "claras y sin adornos.\n\n"
+        "formal y preciso, como un asistente de alto nivel. Tus respuestas se "
+        "muestran en el panel, así que deben ser BREVES (una o dos frases como "
+        "máximo), claras y sin adornos.\n\n"
         "Estilo de comunicación:\n"
         "- Tranquilo y confiado, nunca apurado ni emocional.\n"
         "- Directo: informás el dato o confirmás la acción sin rodeos.\n"
@@ -84,8 +84,8 @@ class Brain:
             self._history.pop(0)
 
     def handle(self, user_text: str, emit: Callable[[dict], None]) -> str:
-        """Process one user utterance. Emits state/action events and returns the
-        final spoken reply text."""
+        """Process one user message. Emits state/action events and returns the
+        final reply text."""
         self._history.append({"role": "user", "content": user_text})
         self._trim()
         emit({"type": "state", "value": "thinking"})

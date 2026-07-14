@@ -1,10 +1,9 @@
-# Home Panel · Asistente de voz (cerebro)
+# Home Panel · Asistente (cerebro)
 
 Servicio en Python que entiende lenguaje natural (con OpenAI function-calling) y
-ejecuta acciones del hogar. Es el "cerebro" que en el futuro se conecta al panel
-Flutter por WebSocket.
+ejecuta acciones del hogar. Se conecta al panel Flutter por WebSocket.
 
-## Qué sabe hacer (v1)
+## Qué sabe hacer
 
 - **Hora**: "¿qué hora es?", "¿qué día es hoy?"
 - **Clima dinámico** (Open-Meteo): "¿cómo está ahora?", "¿va a llover más tarde?",
@@ -18,42 +17,19 @@ Flutter por WebSocket.
     → "las 18". Funciona solo, por el historial de conversación.
   - *Largo plazo* (persiste entre reinicios): "acordate que mi playlist para cocinar
     es Cocina Rock" → se guarda en `memory.json` y lo recuerda siempre.
-- **Voz** (Paso B): micrófono → transcripción (Whisper) → cerebro → respuesta hablada
-  (TTS de OpenAI). Por ahora con *push-to-talk* (botón en el panel / Enter en CLI).
+
+Los comandos se escriben en el panel Flutter (chat de texto).
 
 ## API keys que necesitás
 
 | Servicio | Variable(s) | ¿Obligatorio? | Para qué |
 |---|---|---|---|
-| **OpenAI** | `OPENAI_API_KEY` | **Sí** | Cerebro + voz (STT/TTS) |
+| **OpenAI** | `OPENAI_API_KEY` | **Sí** | Cerebro (NLU + respuestas) |
 | **Spotify** | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | Solo para música | Reproducir (requiere Premium) |
-| **ElevenLabs** | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Solo voz clonada | Reemplaza la voz de OpenAI |
-| **Picovoice** | `PICOVOICE_ACCESS_KEY` + `.ppn` | Solo wake word | Escucha manos libres |
 | Open-Meteo | — | No | Clima (sin key) |
 | MQTT | `MQTT_EMBED_BROKER=true` o `MQTT_HOST` | Solo para luces reales | Broker + control ESP32 |
 
-Con **solo `OPENAI_API_KEY`** ya andan hora, clima, memoria, voz y luces simuladas.
-
-### Voz clonada con ElevenLabs
-
-1. Creá o cloná una voz en https://elevenlabs.io y copiá su **Voice ID**.
-2. En `.env`: `TTS_PROVIDER=elevenlabs`, `ELEVENLABS_API_KEY=...`, `ELEVENLABS_VOICE_ID=...`.
-3. Listo: la respuesta hablada usa esa voz en vez de la de OpenAI. (La salida PCM
-   requiere un plan pago de ElevenLabs; el clonado ya lo requiere igual.)
-
-### Wake word con Porcupine (manos libres)
-
-1. Registrate en https://console.picovoice.ai/ y copiá tu **AccessKey**.
-2. Creá tu palabra clave (ej. "Hola Casa"), plataforma **Windows** → descargá el `.ppn`.
-   Para español, descargá también el modelo `porcupine_params_es.pv`.
-3. En `.env`: `WAKE_WORD_ENABLED=true`, `PICOVOICE_ACCESS_KEY=...`,
-   `WAKE_WORD_KEYWORD_PATH=C:\ruta\a\tu_palabra.ppn`,
-   `WAKE_WORD_MODEL_PATH=C:\ruta\a\porcupine_params_es.pv`.
-4. Corré `python -m assistant --serve`: queda escuchando y al decir la palabra
-   dispara un turno de voz y abre el panel automáticamente.
-
-> Nota: para que te escuche con música sonando hace falta un micrófono con
-> cancelación de eco (speakerphone USB). Con un micro común, funciona en silencio.
+Con **solo `OPENAI_API_KEY`** ya andan hora, clima, memoria y luces simuladas.
 
 ## Setup
 
@@ -73,13 +49,7 @@ Probar por texto:
 python -m assistant
 ```
 
-Probar por voz en la terminal (push-to-talk con Enter):
-
-```powershell
-python -m assistant --voice
-```
-
-Levantar el servidor WebSocket para el panel Flutter (incluye voz):
+Levantar el servidor WebSocket para el panel Flutter:
 
 ```powershell
 python -m assistant --serve
@@ -104,9 +74,8 @@ El ESP32 apunta `MQTT_SERVER` a la IP de la Pi. Topics: `home/switchman3g/relay1
 (relay1=living, relay2=comedor, relay3=patio). Al apretar un botón físico, el ESP32
 publica el estado y el panel Flutter se sincroniza solo.
 
-Con el servidor corriendo, abrí el panel Flutter (`flutter run -d windows`): el
-botón del micrófono abajo a la derecha se pone en verde al conectar. Escribí un
-comando o tocá el micrófono para hablar.
+Con el servidor corriendo, abrí el panel Flutter: el botón del asistente abajo a la
+derecha se pone en verde al conectar. Escribí un comando en el chat.
 
 ## Arquitectura
 
@@ -118,9 +87,6 @@ assistant/
   ws_server.py         # puente WebSocket con Flutter
   mqtt_broker.py       # broker MQTT embebido (aMQTT, puerto 1883)
   main.py              # entrypoint (CLI / --serve / --mqtt-broker)
-  voice.py             # STT (OpenAI) + TTS enchufable (OpenAI / ElevenLabs)
-  wake_word.py         # detección de palabra clave (Porcupine)
-  audio_io.py          # micrófono (VAD) + reproducción PCM
   services/
     time_service.py
     weather_service.py # Open-Meteo (current + hourly + daily)
@@ -129,19 +95,19 @@ assistant/
     memory_service.py  # memoria persistente (memory.json)
 ```
 
-Cada herramienta mapea 1:1 a un método de servicio. Con `MQTT_EMBED_BROKER=true` la Pi
-corre broker + cliente en un solo proceso; el ESP32 se conecta por WiFi y los botones
-físicos actualizan el panel vía WebSocket.
+Con `MQTT_EMBED_BROKER=true` la Pi corre broker + cliente en un solo proceso; el ESP32
+se conecta por WiFi y los botones físicos actualizan el panel vía WebSocket.
 
 ## Protocolo WebSocket
 
 Cliente → servidor:
 - `{"type": "text", "text": "..."}` — comando en texto
-- `{"type": "listen"}` — grabar y procesar un comando por voz
 - `{"type": "reset"}` — limpia la conversación
+- `{"type": "lights", "id": "living", "on": true}` — toggle manual desde el panel
+- `{"type": "spotify", "action": "..."}` — control directo de Spotify
 
 Servidor → cliente:
 - `{"type": "transcript", "text": "..."}`
-- `{"type": "state", "value": "listening"|"thinking"|"speaking"|"idle"}`
+- `{"type": "state", "value": "thinking"|"idle"}`
 - `{"type": "action", "name": "set_lights", ...}`
 - `{"type": "say", "text": "..."}`

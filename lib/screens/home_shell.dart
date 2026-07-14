@@ -58,17 +58,13 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    // Voice light commands drive the panel's real lighting state.
+    // Assistant light commands drive the panel's real lighting state.
     _assistant.onLightCommand = (areas, on) => _lights.setDevices(areas, on);
     // Manual toggles on the dashboard go out to MQTT through Python.
     _lights.onUserToggle = (id, on) => _assistant.sendLight(id, on);
     // Keep assistant light chips in sync when the user toggles from the dashboard.
     _lights.addListener(_syncAssistantLights);
     _syncAssistantLights();
-    // Pop the assistant open when the wake word is heard.
-    _assistant.onWake = () {
-      if (mounted && !_assistantOpen) setState(() => _assistantOpen = true);
-    };
     _assistant.connect();
   }
 
@@ -213,7 +209,7 @@ class _HomeShellState extends State<HomeShell> {
                           child: _overlayContent()!,
                         ),
                       ),
-                    // Voice assistant: floating launcher + docked panel.
+                    // Assistant: floating launcher + docked panel.
                     if (_assistantOpen)
                       Positioned(
                         right: AppSpacing.outer,
@@ -288,7 +284,7 @@ class _EdgeClipper extends CustomClipper<Rect> {
 }
 
 /// Floating button that opens the assistant panel. Shows a live status ring
-/// (green when ready, amber thinking, violet speaking) and a soft glow.
+/// (green when ready, amber when thinking) and a soft glow.
 class _AssistantLauncher extends StatelessWidget {
   const _AssistantLauncher({required this.service, required this.onTap});
 
@@ -304,9 +300,7 @@ class _AssistantLauncher extends StatelessWidget {
           AssistantStatus.offline => AppColors.textTertiary,
           AssistantStatus.error => AppColors.red,
           AssistantStatus.idle => AppColors.blue,
-          AssistantStatus.listening => AppColors.blueBright,
           AssistantStatus.thinking => AppColors.amber,
-          AssistantStatus.speaking => AppColors.violet,
         };
         return GestureDetector(
           onTap: withClick(onTap),
@@ -333,7 +327,7 @@ class _AssistantLauncher extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(Symbols.mic, size: 30, weight: 600, color: accent),
+            child: Icon(Symbols.smart_toy, size: 30, weight: 600, color: accent),
           ),
         );
       },

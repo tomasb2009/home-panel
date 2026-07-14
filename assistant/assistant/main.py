@@ -18,7 +18,6 @@ from .services.spotify_service import SpotifyService
 from .services.time_service import TimeService
 from .services.weather_service import WeatherService
 from .tools import ToolRunner
-from .voice import VoiceService
 
 
 def build_brain(cfg: Config) -> tuple[Brain, ToolRunner]:
@@ -51,45 +50,25 @@ def _print_event(event: dict) -> None:
         print(f"\n{event.get('text', '')}\n")
 
 
-def run_cli(cfg: Config, voice_mode: bool = False) -> None:
+def run_cli(cfg: Config) -> None:
     brain, runner = build_brain(cfg)
     if runner.lights.simulated:
         print("  (luces en modo SIMULADO: MQTT sin configurar)")
     if not runner.spotify.enabled:
         print("  (Spotify sin configurar)")
 
-    voice = VoiceService(cfg) if voice_mode else None
-    if voice_mode and (voice is None or not voice.available):
-        print("Audio no disponible. Instalá sounddevice/numpy o usá el modo texto.", file=sys.stderr)
-        return
-
     try:
-        if voice_mode:
-            print(f"— {cfg.assistant_name} en modo voz. Enter para hablar, 'q'+Enter para salir.")
-            while True:
-                cmd = input("[Enter para hablar] ").strip().lower()
-                if cmd in {"q", "salir", "exit", "quit"}:
-                    break
-                print("  escuchando…")
-                text = voice.listen()  # type: ignore[union-attr]
-                if not text:
-                    print("  (no te escuché)")
-                    continue
-                print(f"  vos: {text}")
-                reply = brain.handle(text, _print_event)
-                voice.speak(reply)  # type: ignore[union-attr]
-        else:
-            print(f"— {cfg.assistant_name} lista. Escribí un comando (o 'salir').")
-            while True:
-                try:
-                    text = input("> ").strip()
-                except EOFError:
-                    break
-                if not text:
-                    continue
-                if text.lower() in {"salir", "exit", "quit"}:
-                    break
-                brain.handle(text, _print_event)
+        print(f"— {cfg.assistant_name} lista. Escribí un comando (o 'salir').")
+        while True:
+            try:
+                text = input("> ").strip()
+            except EOFError:
+                break
+            if not text:
+                continue
+            if text.lower() in {"salir", "exit", "quit"}:
+                break
+            brain.handle(text, _print_event)
     finally:
         runner.lights.close()
 
@@ -98,27 +77,16 @@ def run_server(cfg: Config) -> None:
     from .ws_server import serve
 
     brain, runner = build_brain(cfg)
-    voice = VoiceService(cfg)
     if cfg.mqtt_embed_broker:
         print(f"  (broker MQTT embebido en {cfg.mqtt_broker_bind}:{cfg.mqtt_port})")
     elif runner.lights.simulated:
         print("  (luces en modo SIMULADO: MQTT sin configurar)")
-    if not voice.available:
-        print("  (voz no disponible: sin sounddevice/numpy o sin micrófono)")
     if not runner.spotify.enabled:
         print("  (Spotify sin configurar — completá SPOTIFY_CLIENT_ID/SECRET en .env)")
     elif cfg.spotify_enabled:
         print("  (Spotify listo — abrí Spotify Desktop en esta PC)")
-    if cfg.always_listen_ready:
-        print("  (escucha continua — hablá directo, sin palabra clave)")
-    elif cfg.wake_word_ready:
-        print("  (wake word activada)")
-    elif cfg.wake_word_enabled:
-        print("  (wake word: configuración incompleta — revisá .env)")
-    else:
-        print("  (solo push-to-talk — poné LISTEN_MODE=always o wake_word en .env)")
     try:
-        asyncio.run(serve(cfg, brain, voice, runner.spotify, runner.lights))
+        asyncio.run(serve(cfg, brain, runner.spotify, runner.lights))
     except KeyboardInterrupt:
         pass
     finally:
@@ -126,8 +94,6 @@ def run_server(cfg: Config) -> None:
 
 
 def run_mqtt_broker(cfg: Config) -> None:
-    import asyncio
-
     from .mqtt_broker import run_standalone
 
     print(f"Broker MQTT en {cfg.mqtt_broker_bind}:{cfg.mqtt_port} (Ctrl+C para salir)")
@@ -150,34 +116,20 @@ def main() -> None:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
-    parser = argparse.ArgumentParser(description="Home Panel voice assistant brain")
+    parser = argparse.ArgumentParser(description="Home Panel assistant brain")
     parser.add_argument("--serve", action="store_true", help="Run the WebSocket server")
     parser.add_argument(
         "--mqtt-broker",
         action="store_true",
         help="Run only the embedded MQTT broker (for systemd on the Pi)",
     )
-    parser.add_argument("--voice", action="store_true", help="CLI en modo voz (push-to-talk)")
-    parser.add_argument("--list-mics", action="store_true", help="Listar micrófonos disponibles")
     parser.add_argument("--spotify-diagnose", action="store_true", help="Probar conexión con Spotify")
     args = parser.parse_args()
 
     cfg = load_config()
-    if not cfg.openai_api_key and not args.list_mics and not args.spotify_diagnose and not args.mqtt_broker:
+    if not cfg.openai_api_key and not args.spotify_diagnose and not args.mqtt_broker:
         print("Falta OPENAI_API_KEY. Copiá .env.example a .env y completalo.", file=sys.stderr)
         sys.exit(1)
-
-    if args.list_mics:
-        from . import audio_io
-        print("Micrófonos de entrada detectados:")
-        for line in audio_io.list_input_devices():
-            print(line)
-        mic = audio_io.resolve_mic(cfg.mic_device)
-        if mic:
-            print(f"\nSeleccionado: {mic.label}")
-        else:
-            print("\nNo se pudo abrir ningún micrófono.")
-        return
 
     if args.spotify_diagnose:
         from .spotify_diagnose import run_spotify_diagnose
@@ -188,7 +140,7 @@ def main() -> None:
     elif args.serve:
         run_server(cfg)
     else:
-        run_cli(cfg, voice_mode=args.voice)
+        run_cli(cfg)
 
 
 if __name__ == "__main__":

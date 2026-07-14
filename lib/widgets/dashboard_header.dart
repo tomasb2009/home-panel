@@ -25,9 +25,20 @@ class DashboardHeader extends StatelessWidget {
             children: [
               TickingBuilder(
                 interval: const Duration(seconds: 30),
-                builder: (context, now) => Text(
-                  '${Daypart.of(now).greeting}, Tomás 👋',
-                  style: AppText.greeting,
+                builder: (context, now) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${Daypart.of(now).greeting}, Familia',
+                      style: AppText.greeting,
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.waving_hand_rounded,
+                      size: 26,
+                      color: AppColors.blueBright,
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: AppSpacing.s8),

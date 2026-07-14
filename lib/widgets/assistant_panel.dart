@@ -8,7 +8,7 @@ import 'app_card.dart';
 import 'icon_badge.dart';
 
 /// Floating assistant panel: shows the conversation, live status, the light
-/// areas the assistant controls, and an input to type (or speak) commands.
+/// areas the assistant controls, and an input to type commands.
 class AssistantPanel extends StatefulWidget {
   const AssistantPanel({
     super.key,
@@ -87,9 +87,7 @@ class _AssistantPanelState extends State<AssistantPanel> {
             _InputBar(
               controller: _input,
               enabled: s.connected,
-              listening: s.status == AssistantStatus.listening,
               onSend: _send,
-              onMic: s.startListening,
             ),
           ],
         ),
@@ -109,7 +107,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const IconBadge(icon: Symbols.graphic_eq, accent: AppColors.blue),
+        const IconBadge(icon: Symbols.smart_toy, accent: AppColors.blue),
         const SizedBox(width: AppSpacing.iconText),
         Expanded(
           child: Column(
@@ -140,9 +138,7 @@ class _StatusLine extends StatelessWidget {
       AssistantStatus.offline => ('Sin conexión', AppColors.textTertiary),
       AssistantStatus.error => ('Error', AppColors.red),
       AssistantStatus.idle => ('Listo', AppColors.green),
-      AssistantStatus.listening => ('Escuchando…', AppColors.blueBright),
       AssistantStatus.thinking => ('Pensando…', AppColors.amber),
-      AssistantStatus.speaking => ('Hablando…', AppColors.violet),
     };
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -228,7 +224,7 @@ class _Conversation extends StatelessWidget {
       return Center(
         child: Text(
           service.connected
-              ? 'Decime algo, por ejemplo:\n"¿va a llover a la noche?"\n"prendé las luces del living"'
+              ? 'Escribí un comando, por ejemplo:\n"¿va a llover a la noche?"\n"prendé las luces del living"'
               : 'Esperando al asistente…\n(¿está corriendo el servicio?)',
           textAlign: TextAlign.center,
           style: AppText.secondary,
@@ -280,16 +276,12 @@ class _InputBar extends StatelessWidget {
   const _InputBar({
     required this.controller,
     required this.enabled,
-    required this.listening,
     required this.onSend,
-    required this.onMic,
   });
 
   final TextEditingController controller;
   final bool enabled;
-  final bool listening;
   final VoidCallback onSend;
-  final VoidCallback onMic;
 
   @override
   Widget build(BuildContext context) {
@@ -318,12 +310,6 @@ class _InputBar extends StatelessWidget {
               onSubmitted: (_) => onSend(),
             ),
           ),
-        ),
-        const SizedBox(width: AppSpacing.s8),
-        _RoundButton(
-          icon: listening ? Symbols.graphic_eq : Symbols.mic,
-          accent: listening ? AppColors.violet : AppColors.blue,
-          onTap: enabled ? onMic : null,
         ),
         const SizedBox(width: AppSpacing.s8),
         _RoundButton(icon: Symbols.send, accent: AppColors.blue, onTap: enabled ? onSend : null),

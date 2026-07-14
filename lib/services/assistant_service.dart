@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:web_socket_channel/status.dart' as ws_status;
 
-/// High-level state of the voice assistant, mirrored from the Python brain.
-enum AssistantStatus { offline, idle, listening, thinking, speaking, error }
+/// High-level state of the text assistant, mirrored from the Python brain.
+enum AssistantStatus { offline, idle, thinking, error }
 
 /// One line of the conversation shown in the assistant panel.
 @immutable
@@ -18,8 +18,8 @@ class AssistantTurn {
 
 /// Talks to the Python "brain" over a localhost WebSocket.
 ///
-/// Sends text (and later, a "listen" trigger for push-to-talk) and reacts to
-/// the events the brain pushes back: transcript, state, action, say.
+/// Sends text commands and reacts to the events the brain pushes back:
+/// transcript, state, action, say.
 class AssistantService extends ChangeNotifier {
   AssistantService({this.url = 'ws://127.0.0.1:8765'});
 
@@ -41,11 +41,8 @@ class AssistantService extends ChangeNotifier {
   /// Light areas the assistant controls, mirrored for the panel UI.
   final Map<String, bool> lights = {'living': false, 'comedor': false, 'patio': false};
 
-  /// Called when voice toggles one or more lights so [LightsModel] stays in sync.
+  /// Called when the assistant toggles one or more lights so [LightsModel] stays in sync.
   void Function(List<String> areas, bool on)? onLightCommand;
-
-  /// Called when the wake word is detected, so the panel can pop open.
-  VoidCallback? onWake;
 
   /// Spotify UI responses from the Python brain (direct API, not LLM).
   void Function(Map<String, dynamic> msg)? onSpotifyResponse;
@@ -104,10 +101,6 @@ class AssistantService extends ChangeNotifier {
     }
 
     switch (msg['type']) {
-      case 'wake':
-        _setStatus(AssistantStatus.listening);
-        onWake?.call();
-        break;
       case 'transcript':
         final text = (msg['text'] as String?)?.trim() ?? '';
         if (text.isNotEmpty) turns.add(AssistantTurn(fromUser: true, text: text));
@@ -160,12 +153,8 @@ class AssistantService extends ChangeNotifier {
 
   AssistantStatus _statusFrom(String? value) {
     switch (value) {
-      case 'listening':
-        return AssistantStatus.listening;
       case 'thinking':
         return AssistantStatus.thinking;
-      case 'speaking':
-        return AssistantStatus.speaking;
       case 'idle':
       default:
         return AssistantStatus.idle;
@@ -183,13 +172,6 @@ class AssistantService extends ChangeNotifier {
     text = text.trim();
     if (text.isEmpty || _channel == null) return;
     _channel!.sink.add(jsonEncode({'type': 'text', 'text': text}));
-  }
-
-  /// Push-to-talk: asks the brain to capture a voice command (Step B).
-  void startListening() {
-    if (_channel == null) return;
-    _setStatus(AssistantStatus.listening);
-    _channel!.sink.add(jsonEncode({'type': 'listen'}));
   }
 
   /// Direct Spotify API command for the music screen.
