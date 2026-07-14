@@ -20,7 +20,7 @@ from .services.weather_service import WeatherService
 from .tools import ToolRunner
 
 
-def build_brain(cfg: Config) -> tuple[Brain, ToolRunner]:
+def build_brain(cfg: Config, *, defer_mqtt: bool = False) -> tuple[Brain, ToolRunner]:
     time_service = TimeService(cfg.timezone)
     weather_service = WeatherService(
         cfg.latitude, cfg.longitude, cfg.timezone, cfg.location_name
@@ -28,6 +28,7 @@ def build_brain(cfg: Config) -> tuple[Brain, ToolRunner]:
     lights_service = LightsService(
         cfg.mqtt_client_host, cfg.mqtt_port, cfg.mqtt_username, cfg.mqtt_password,
         cfg.mqtt_lights_prefix, cfg.mqtt_lights_on, cfg.mqtt_lights_off,
+        defer_connect=defer_mqtt,
     )
     spotify_service = SpotifyService(
         cfg.spotify_client_id, cfg.spotify_client_secret,
@@ -76,7 +77,7 @@ def run_cli(cfg: Config) -> None:
 def run_server(cfg: Config) -> None:
     from .ws_server import serve
 
-    brain, runner = build_brain(cfg)
+    brain, runner = build_brain(cfg, defer_mqtt=cfg.mqtt_embed_broker)
     if cfg.mqtt_embed_broker:
         print(f"  (broker MQTT embebido en {cfg.mqtt_broker_bind}:{cfg.mqtt_port})")
     elif runner.lights.simulated:

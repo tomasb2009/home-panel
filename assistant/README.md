@@ -77,6 +77,88 @@ publica el estado y el panel Flutter se sincroniza solo.
 Con el servidor corriendo, abrí el panel Flutter: el botón del asistente abajo a la
 derecha se pone en verde al conectar. Escribí un comando en el chat.
 
+## MQTT + ESP32 (Sonoff SwitchMan 3G)
+
+### ¿Broker embebido o Mosquitto?
+
+| Opción | Cuándo usarla |
+|--------|----------------|
+| **Embebido** (`MQTT_EMBED_BROKER=true`) | **Recomendado para tu setup.** Un solo comando (`--serve`) levanta WebSocket + broker + cliente MQTT. Sin instalar nada extra en la Pi. |
+| **Mosquitto** (`sudo apt install mosquitto`) | Si más adelante querés Home Assistant, Node-RED u otros clientes MQTT separados, o autenticación/persistencia avanzada. En ese caso: `MQTT_EMBED_BROKER=false` y `MQTT_HOST=127.0.0.1`. |
+
+Para panel + ESP32 + asistente en la misma Raspberry, **el embebido alcanza**.
+
+### Topics (deben coincidir con el firmware ESP32)
+
+Prefijo: `home/switchman3g` (variable `MQTT_BASE_TOPIC` / `MQTT_LIGHTS_PREFIX`)
+
+| Topic | Dirección | Payload |
+|-------|-----------|---------|
+| `…/relay1/set` | Pi → ESP32 | `ON` / `OFF` |
+| `…/relay1/state` | ESP32 → Pi | `ON` / `OFF` (retained) |
+| `…/relay2/set\|state` | comedor | igual |
+| `…/relay3/set\|state` | patio | igual |
+| `…/status` | ESP32 LWT | `online` / `offline` |
+
+Mapeo en el asistente: relay1=living, relay2=comedor, relay3=patio.
+
+### Configuración en la Raspberry Pi
+
+`.env`:
+
+```env
+MQTT_EMBED_BROKER=true
+MQTT_BROKER_BIND=0.0.0.0
+MQTT_PORT=1883
+MQTT_LIGHTS_PREFIX=home/switchman3g
+MQTT_LIGHTS_ON=ON
+MQTT_LIGHTS_OFF=OFF
+```
+
+En el firmware ESP32, cambiá solo la IP del broker:
+
+```cpp
+const char* MQTT_SERVER = "192.168.x.x";  // IP fija de la Raspberry Pi
+const char* MQTT_BASE_TOPIC = "home/switchman3g";  // igual que MQTT_LIGHTS_PREFIX
+```
+
+Reservá IP fija para la Pi en el router (DHCP reservation).
+
+### Arranque 24/7 (systemd)
+
+```ini
+# /etc/systemd/system/home-assistant.service
+[Unit]
+Description=Home Panel Assistant + MQTT
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/home-panel/assistant
+Environment=PATH=/home/pi/home-panel/assistant/.venv/bin
+ExecStart=/home/pi/home-panel/assistant/.venv/bin/python -m assistant --serve
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now home-assistant
+```
+
+### Probar que MQTT funciona
+
+1. En la Pi: `python -m assistant --serve` → deberías ver `Broker MQTT escuchando en 0.0.0.0:1883`.
+2. Flasheá el ESP32 con la IP correcta de la Pi.
+3. Serial del ESP32: `Conectando a MQTT... conectado!`
+4. Desde el panel Flutter (Luces) o el chat: "prendé el living".
+5. Botón físico del switch → el panel se sincroniza solo.
+
 ## Arquitectura
 
 ```

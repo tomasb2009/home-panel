@@ -172,7 +172,13 @@ class LightsService:
         prefix: str,
         payload_on: str,
         payload_off: str,
+        *,
+        defer_connect: bool = False,
     ) -> None:
+        self._host = host
+        self._port = port
+        self._username = username
+        self._password = password
         self.prefix = prefix.rstrip("/")
         self.payload_on = payload_on
         self.payload_off = payload_off
@@ -182,25 +188,38 @@ class LightsService:
         self._state_callback: StateCallback | None = None
         self._updating_from_mqtt = False
 
-        if host and mqtt is not None:
-            try:
-                client = mqtt.Client(
-                    mqtt.CallbackAPIVersion.VERSION2,
-                    client_id="home-panel-assistant",
-                )
-                if username:
-                    client.username_pw_set(username, password)
-                client.on_message = self._on_message
-                client.connect(host, port, keepalive=30)
-                client.loop_start()
-                self._client = client
-                self._connected = True
-                self._subscribe_state_topics()
-                log.info("MQTT conectado a %s:%s", host, port)
-            except Exception as e:  # noqa: BLE001
-                log.warning("No pude conectar a MQTT (%s). Modo simulado.", e)
-        else:
+        if host and mqtt is not None and not defer_connect:
+            self.ensure_connected()
+        elif not host:
             log.info("MQTT sin configurar. Luces en modo simulado.")
+
+    def ensure_connected(self) -> bool:
+        """Connect (or reconnect) to the broker. Safe to call after embed broker starts."""
+        if not self._host or mqtt is None:
+            return False
+        if self._connected and self._client is not None:
+            return True
+
+        try:
+            client = mqtt.Client(
+                mqtt.CallbackAPIVersion.VERSION2,
+                client_id="home-panel-assistant",
+            )
+            if self._username:
+                client.username_pw_set(self._username, self._password)
+            client.on_message = self._on_message
+            client.connect(self._host, self._port, keepalive=30)
+            client.loop_start()
+            self._client = client
+            self._connected = True
+            self._subscribe_state_topics()
+            log.info("MQTT conectado a %s:%s", self._host, self._port)
+            return True
+        except Exception as e:  # noqa: BLE001
+            log.warning("No pude conectar a MQTT (%s). Modo simulado.", e)
+            self._connected = False
+            self._client = None
+            return False
 
     def set_state_callback(self, callback: StateCallback | None) -> None:
         """Called when relay state changes (physical button or remote /set)."""
@@ -270,7 +289,8 @@ class LightsService:
 
         if self._connected and self._client is not None:
             try:
-                self._client.publish(topic, payload, qos=1, retain=True)
+                # Commands on /set are not retained; ESP32 publishes retained /state.
+                self._client.publish(topic, payload, qos=1, retain=False)
             except Exception as e:  # noqa: BLE001
                 return {"ok": False, "message": f"Error publicando en MQTT: {e}"}
         else:

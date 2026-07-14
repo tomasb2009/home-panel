@@ -69,6 +69,11 @@ async def serve(
         )
         if mqtt_broker is None:
             log.warning("Broker MQTT embebido no pudo iniciarse")
+        elif lights is not None:
+            if lights.ensure_connected():
+                log.info("Cliente MQTT del asistente conectado al broker embebido")
+            else:
+                log.warning("Broker MQTT activo pero el cliente de luces no conectó")
 
     async def handler(ws):
         peer = getattr(ws, "remote_address", "?")
