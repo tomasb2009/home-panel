@@ -60,6 +60,8 @@ class _HomeShellState extends State<HomeShell> {
     super.initState();
     // Voice light commands drive the panel's real lighting state.
     _assistant.onLightCommand = (areas, on) => _lights.setDevices(areas, on);
+    // Manual toggles on the dashboard go out to MQTT through Python.
+    _lights.onUserToggle = (id, on) => _assistant.sendLight(id, on);
     // Keep assistant light chips in sync when the user toggles from the dashboard.
     _lights.addListener(_syncAssistantLights);
     _syncAssistantLights();

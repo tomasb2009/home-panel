@@ -95,7 +95,9 @@ class Config:
     ws_host: str
     ws_port: int
 
-    # MQTT (lights)
+    # MQTT (lights + optional embedded broker)
+    mqtt_embed_broker: bool
+    mqtt_broker_bind: str
     mqtt_host: str
     mqtt_port: int
     mqtt_username: str
@@ -112,7 +114,16 @@ class Config:
 
     @property
     def mqtt_enabled(self) -> bool:
-        return bool(self.mqtt_host)
+        return bool(self.mqtt_client_host)
+
+    @property
+    def mqtt_client_host(self) -> str:
+        """Host the assistant client uses to publish/subscribe."""
+        if self.mqtt_host:
+            return self.mqtt_host
+        if self.mqtt_embed_broker:
+            return "127.0.0.1"
+        return ""
 
     @property
     def spotify_enabled(self) -> bool:
@@ -185,11 +196,13 @@ def load_config() -> Config:
         timezone=_get("TIMEZONE", "America/Argentina/Cordoba"),
         ws_host=_get("WS_HOST", "127.0.0.1"),
         ws_port=_get_int("WS_PORT", 8765),
+        mqtt_embed_broker=_get_bool("MQTT_EMBED_BROKER", False),
+        mqtt_broker_bind=_get("MQTT_BROKER_BIND", "0.0.0.0"),
         mqtt_host=_get("MQTT_HOST"),
         mqtt_port=_get_int("MQTT_PORT", 1883),
         mqtt_username=_get("MQTT_USERNAME"),
         mqtt_password=_get("MQTT_PASSWORD"),
-        mqtt_lights_prefix=_get("MQTT_LIGHTS_PREFIX", "home/luces"),
+        mqtt_lights_prefix=_get("MQTT_LIGHTS_PREFIX", "home/switchman3g"),
         mqtt_lights_on=_get("MQTT_LIGHTS_ON", "ON"),
         mqtt_lights_off=_get("MQTT_LIGHTS_OFF", "OFF"),
         spotify_client_id=_get("SPOTIFY_CLIENT_ID"),

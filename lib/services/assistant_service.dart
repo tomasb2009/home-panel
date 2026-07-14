@@ -202,6 +202,12 @@ class AssistantService extends ChangeNotifier {
     }));
   }
 
+  /// Manual light toggle from the dashboard — forwarded to MQTT via Python.
+  void sendLight(String id, bool on) {
+    if (_channel == null) return;
+    _channel!.sink.add(jsonEncode({'type': 'lights', 'id': id, 'on': on}));
+  }
+
   /// Clears the conversation (short-term memory) on both ends.
   void reset() {
     turns.clear();

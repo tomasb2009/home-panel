@@ -32,6 +32,8 @@ class LightDevice {
 /// panel stay perfectly in sync. When real hardware arrives, only the data
 /// source behind this model needs to change.
 class LightsModel extends ChangeNotifier {
+  /// Called when the user toggles a light from the UI (not from voice/MQTT sync).
+  void Function(String id, bool on)? onUserToggle;
   static const List<RoomInfo> rooms = [
     RoomInfo('Sala de estar', Symbols.weekend),
     RoomInfo('Patio trasero', Symbols.deck),
@@ -61,6 +63,7 @@ class LightsModel extends ChangeNotifier {
   void toggle(String id) {
     final d = _find(id);
     d.isOn = !d.isOn;
+    onUserToggle?.call(id, d.isOn);
     notifyListeners();
   }
 
@@ -87,6 +90,7 @@ class LightsModel extends ChangeNotifier {
   void setRoom(String room, bool on) {
     for (final d in byRoom(room)) {
       d.isOn = on;
+      onUserToggle?.call(d.id, on);
     }
     notifyListeners();
   }
@@ -94,6 +98,7 @@ class LightsModel extends ChangeNotifier {
   void allOff() {
     for (final d in devices) {
       d.isOn = false;
+      onUserToggle?.call(d.id, false);
     }
     notifyListeners();
   }
@@ -101,14 +106,15 @@ class LightsModel extends ChangeNotifier {
   void allOn() {
     for (final d in devices) {
       d.isOn = true;
+      onUserToggle?.call(d.id, true);
     }
     notifyListeners();
   }
 
-  /// Interior off, patio on — safe lighting for the night.
   void nightMode() {
     for (final d in devices) {
       d.isOn = d.room == 'Patio trasero';
+      onUserToggle?.call(d.id, d.isOn);
     }
     notifyListeners();
   }

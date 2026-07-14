@@ -27,7 +27,7 @@ def build_brain(cfg: Config) -> tuple[Brain, ToolRunner]:
         cfg.latitude, cfg.longitude, cfg.timezone, cfg.location_name
     )
     lights_service = LightsService(
-        cfg.mqtt_host, cfg.mqtt_port, cfg.mqtt_username, cfg.mqtt_password,
+        cfg.mqtt_client_host, cfg.mqtt_port, cfg.mqtt_username, cfg.mqtt_password,
         cfg.mqtt_lights_prefix, cfg.mqtt_lights_on, cfg.mqtt_lights_off,
     )
     spotify_service = SpotifyService(
@@ -99,6 +99,10 @@ def run_server(cfg: Config) -> None:
 
     brain, runner = build_brain(cfg)
     voice = VoiceService(cfg)
+    if cfg.mqtt_embed_broker:
+        print(f"  (broker MQTT embebido en {cfg.mqtt_broker_bind}:{cfg.mqtt_port})")
+    elif runner.lights.simulated:
+        print("  (luces en modo SIMULADO: MQTT sin configurar)")
     if not voice.available:
         print("  (voz no disponible: sin sounddevice/numpy o sin micrófono)")
     if not runner.spotify.enabled:
@@ -114,11 +118,30 @@ def run_server(cfg: Config) -> None:
     else:
         print("  (solo push-to-talk — poné LISTEN_MODE=always o wake_word en .env)")
     try:
-        asyncio.run(serve(cfg, brain, voice, runner.spotify))
+        asyncio.run(serve(cfg, brain, voice, runner.spotify, runner.lights))
     except KeyboardInterrupt:
         pass
     finally:
         runner.lights.close()
+
+
+def run_mqtt_broker(cfg: Config) -> None:
+    import asyncio
+
+    from .mqtt_broker import run_standalone
+
+    print(f"Broker MQTT en {cfg.mqtt_broker_bind}:{cfg.mqtt_port} (Ctrl+C para salir)")
+    try:
+        asyncio.run(
+            run_standalone(
+                cfg.mqtt_broker_bind,
+                cfg.mqtt_port,
+                cfg.mqtt_username,
+                cfg.mqtt_password,
+            )
+        )
+    except KeyboardInterrupt:
+        pass
 
 
 def main() -> None:
@@ -129,13 +152,18 @@ def main() -> None:
     )
     parser = argparse.ArgumentParser(description="Home Panel voice assistant brain")
     parser.add_argument("--serve", action="store_true", help="Run the WebSocket server")
+    parser.add_argument(
+        "--mqtt-broker",
+        action="store_true",
+        help="Run only the embedded MQTT broker (for systemd on the Pi)",
+    )
     parser.add_argument("--voice", action="store_true", help="CLI en modo voz (push-to-talk)")
     parser.add_argument("--list-mics", action="store_true", help="Listar micrófonos disponibles")
     parser.add_argument("--spotify-diagnose", action="store_true", help="Probar conexión con Spotify")
     args = parser.parse_args()
 
     cfg = load_config()
-    if not cfg.openai_api_key and not args.list_mics and not args.spotify_diagnose:
+    if not cfg.openai_api_key and not args.list_mics and not args.spotify_diagnose and not args.mqtt_broker:
         print("Falta OPENAI_API_KEY. Copiá .env.example a .env y completalo.", file=sys.stderr)
         sys.exit(1)
 
@@ -155,7 +183,9 @@ def main() -> None:
         from .spotify_diagnose import run_spotify_diagnose
         sys.exit(run_spotify_diagnose(cfg))
 
-    if args.serve:
+    if args.mqtt_broker:
+        run_mqtt_broker(cfg)
+    elif args.serve:
         run_server(cfg)
     else:
         run_cli(cfg, voice_mode=args.voice)

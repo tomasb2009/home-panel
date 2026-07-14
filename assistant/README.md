@@ -30,7 +30,7 @@ Flutter por WebSocket.
 | **ElevenLabs** | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` | Solo voz clonada | Reemplaza la voz de OpenAI |
 | **Picovoice** | `PICOVOICE_ACCESS_KEY` + `.ppn` | Solo wake word | Escucha manos libres |
 | Open-Meteo | — | No | Clima (sin key) |
-| MQTT | `MQTT_HOST` (+ user/pass) | Solo para luces reales | Enviar topics a los ESP32 |
+| MQTT | `MQTT_EMBED_BROKER=true` o `MQTT_HOST` | Solo para luces reales | Broker + control ESP32 |
 
 Con **solo `OPENAI_API_KEY`** ya andan hora, clima, memoria, voz y luces simuladas.
 
@@ -85,6 +85,25 @@ Levantar el servidor WebSocket para el panel Flutter (incluye voz):
 python -m assistant --serve
 ```
 
+En la Raspberry Pi, con broker MQTT embebido (puerto 1883, 24/7 con `--serve`):
+
+```powershell
+# .env
+MQTT_EMBED_BROKER=true
+MQTT_BROKER_BIND=0.0.0.0
+MQTT_LIGHTS_PREFIX=home/switchman3g
+```
+
+Solo el broker (útil con systemd):
+
+```powershell
+python -m assistant --mqtt-broker
+```
+
+El ESP32 apunta `MQTT_SERVER` a la IP de la Pi. Topics: `home/switchman3g/relay1/set|state`
+(relay1=living, relay2=comedor, relay3=patio). Al apretar un botón físico, el ESP32
+publica el estado y el panel Flutter se sincroniza solo.
+
 Con el servidor corriendo, abrí el panel Flutter (`flutter run -d windows`): el
 botón del micrófono abajo a la derecha se pone en verde al conectar. Escribí un
 comando o tocá el micrófono para hablar.
@@ -97,7 +116,8 @@ assistant/
   brain.py             # loop OpenAI function-calling + personalidad
   tools.py             # schema de herramientas + dispatcher
   ws_server.py         # puente WebSocket con Flutter
-  main.py              # entrypoint (CLI / --serve)
+  mqtt_broker.py       # broker MQTT embebido (aMQTT, puerto 1883)
+  main.py              # entrypoint (CLI / --serve / --mqtt-broker)
   voice.py             # STT (OpenAI) + TTS enchufable (OpenAI / ElevenLabs)
   wake_word.py         # detección de palabra clave (Porcupine)
   audio_io.py          # micrófono (VAD) + reproducción PCM
@@ -109,8 +129,9 @@ assistant/
     memory_service.py  # memoria persistente (memory.json)
 ```
 
-Cada herramienta mapea 1:1 a un método de servicio. Cuando llegue el hardware
-WiFi (ESP32), solo hay que apuntar `MQTT_HOST` al broker: el resto no cambia.
+Cada herramienta mapea 1:1 a un método de servicio. Con `MQTT_EMBED_BROKER=true` la Pi
+corre broker + cliente en un solo proceso; el ESP32 se conecta por WiFi y los botones
+físicos actualizan el panel vía WebSocket.
 
 ## Protocolo WebSocket
 

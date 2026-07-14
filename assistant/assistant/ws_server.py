@@ -50,10 +50,12 @@ async def serve(
     brain: Brain,
     voice: VoiceService | None = None,
     spotify: SpotifyService | None = None,
+    lights=None,
 ) -> None:
     loop = asyncio.get_running_loop()
     clients: set = set()
     mic_lock = threading.Lock()
+    mqtt_broker = None
 
     def broadcast(event: dict) -> None:
         """Thread-safe send to every connected panel."""
@@ -62,6 +64,32 @@ async def serve(
         text = json.dumps(event, ensure_ascii=False)
         for ws in list(clients):
             asyncio.run_coroutine_threadsafe(_safe_send(ws, text), loop)
+
+    if lights is not None:
+        def on_physical_light(slug: str, on: bool, source: str) -> None:
+            if source != "mqtt":
+                return
+            broadcast({
+                "type": "action",
+                "name": "set_lights",
+                "areas": [slug],
+                "on": on,
+                "source": "physical",
+            })
+
+        lights.set_state_callback(on_physical_light)
+
+    if cfg.mqtt_embed_broker:
+        from .mqtt_broker import start_embedded_broker
+
+        mqtt_broker = await start_embedded_broker(
+            cfg.mqtt_broker_bind,
+            cfg.mqtt_port,
+            cfg.mqtt_username,
+            cfg.mqtt_password,
+        )
+        if mqtt_broker is None:
+            log.warning("Broker MQTT embebido no pudo iniciarse")
 
     async def handler(ws):
         peer = getattr(ws, "remote_address", "?")
@@ -93,6 +121,11 @@ async def serve(
                         handle_spotify_message, msg, spotify
                     )
                     await _safe_send(ws, json.dumps(result, ensure_ascii=False))
+                elif kind == "lights" and lights is not None:
+                    slug = (msg.get("id") or "").strip()
+                    on = msg.get("on") is True
+                    if slug:
+                        await asyncio.to_thread(lights.set_light, slug, on, source="panel")
         except websockets.ConnectionClosed:
             pass
         finally:
@@ -108,6 +141,8 @@ async def serve(
     finally:
         if listener is not None:
             listener.stop()
+        if mqtt_broker is not None:
+            await mqtt_broker.shutdown()
 
 
 async def _safe_send(ws, text: str) -> None:
